@@ -107,4 +107,35 @@ if img is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            ax.scatter(ages, l_vals, color='#008000', s=120, edgecolors='
+            ax.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
+
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=10)
+        ]
+        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True)
+        plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
+        ax.axis('off')
+
+        # Buffer generation
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
+        buf.seek(0)
+        
+        st.pyplot(fig, width='stretch', clear_figure=True)
+
+        # --- REFINED DOWNLOAD BUTTON ---
+        if st.session_state.visits:
+            st.download_button(
+                label="📥 DOWNLOAD CLINICAL REPORT",
+                data=buf,
+                file_name=f"AXL_Report_{name}.png",
+                mime="image/png",
+                width='stretch'
+            )
+
+    finally:
+        plt.close(fig)
+else:
+    st.error(f"⚠️ Missing {img_file}")
