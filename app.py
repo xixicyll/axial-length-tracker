@@ -70,7 +70,7 @@ with st.sidebar:
             st.rerun()
 
 # --- 3. Main Display Area ---
-st.title(""👁️ Axial Length History Tracker"")
+st.title("👁️ Axial Length History Tracker")
 
 # Restored Patient Info Bar
 today = datetime.now().strftime("%d %b %Y")
