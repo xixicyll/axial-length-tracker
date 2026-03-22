@@ -17,18 +17,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# Initialize Session State
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
 # --- 2. Sidebar: Patient Management ---
 with st.sidebar:
     st.markdown("### 👤 Patient Profile")
-    name = st.text_input("Name", "Unnamed", label_visibility="collapsed")
-    gender = st.selectbox("Gender", ["Female", "Male"], label_visibility="collapsed")
+    name = st.text_input("Name", "Unnamed")
+    gender = st.selectbox("Gender", ["Female", "Male"])
     
     st.divider()
     st.markdown("### ➕ Add New Measurement")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
+    
     cl, cr = st.columns(2)
     v_left = cl.number_input("Left Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
     v_right = cr.number_input("Right Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
@@ -42,18 +44,23 @@ with st.sidebar:
         if st.session_state.visits: 
             st.session_state.visits.pop()
             st.rerun()
+            
+    if st.button("Clear All", use_container_width=True):
+        st.session_state.visits = []
+        st.rerun()
 
 # --- 3. Main Display Area ---
 st.title("👁️ Axial Length History Tracker")
 
+# Logic to pick the correct background image
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
 if os.path.exists(img_file):
-    # FAST PREVIEW: Lower DPI (80) for instant response
-    fig, ax = plt.subplots(figsize=(12, 7), dpi=80) 
+    # PREVIEW ENGINE: Balanced DPI for speed and clarity
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     img = mpimg.imread(img_file)
     
-    ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest') # 'nearest' is faster
+    ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
     ax.set_xlim(3.8, 20.0)
     ax.set_ylim(19.5, 28.5)
     
@@ -61,44 +68,39 @@ if os.path.exists(img_file):
         ages = [v['Age'] for v in st.session_state.visits]
         l_vals = [v['Left'] for v in st.session_state.visits]
         r_vals = [v['Right'] for v in st.session_state.visits]
-        ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1, zorder=10)
-        ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1, zorder=10)
+        
+        # Scatter dots only
+        ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
+        ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
 
+    # Legend & Title
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=8),
-        Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=8)
+        Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
     ]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True, facecolor='white', framealpha=0.9)
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), 
+              frameon=True, facecolor='white', framealpha=0.9, fontsize=12)
 
-    plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=18, fontweight='bold', pad=10)
+    plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
     ax.axis('off')
     
-    # Display preview
+    # Render the chart
     st.pyplot(fig, use_container_width=True, clear_figure=True)
 
-    # --- 4. HIGH-RES GENERATION (Only on request) ---
-    @st.fragment # Ensures this logic doesn't run unless needed
-    def download_section():
-        if st.button("Prepare High-Res Report 💾"):
-            with st.spinner("Generating crisp image..."):
-                # Re-create figure at high DPI only for the buffer
-                fig_hr, ax_hr = plt.subplots(figsize=(15, 8.5), dpi=300)
-                ax_hr.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
-                if st.session_state.visits:
-                    ax_hr.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', zorder=10)
-                    ax_hr.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', zorder=10)
-                
-                ax_hr.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True)
-                ax_hr.set_title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=15)
-                ax_hr.axis('off')
-                
-                buf = io.BytesIO()
-                plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
-                buf.seek(0)
-                
-                st.download_button(label="Click to Download PNG", data=buf, file_name=f"AXL_{name}.png", mime="image/png")
-
-    download_section()
-
+    # --- 4. HIGH-RES EXPORT ---
+    # We generate the high-res file ONLY if there is data, to save memory
+    if st.session_state.visits:
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight', pad_inches=0.1)
+        buf.seek(0)
+        
+        st.download_button(
+            label="💾 Download High-Resolution Report (.png)",
+            data=buf,
+            file_name=f"AXL_Report_{name}.png",
+            mime="image/png"
+        )
 else:
-    st.error(f"Missing background image: '{img_file}'")
+    # If image is missing, show a helpful message instead of crashing
+    st.error(f"⚠️ Background image '{img_file}' not found.")
+    st.info("Please ensure the .jfif files are in your GitHub repository folder.")
