@@ -85,4 +85,8 @@ if os.path.exists(img_file):
     
     # Compact Save button
     save_fn = f"AXL_{name}.png"
-    plt.
+    plt.savefig(save_fn, dpi=300, bbox_inches='tight')
+    with open(save_fn, "rb") as f:
+        st.download_button("💾 Save Professional Report", f, file_name=save_fn, use_container_width=False)
+else:
+    st.error("Chart images missing in GitHub repository.")
