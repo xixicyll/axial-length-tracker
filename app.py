@@ -58,7 +58,7 @@ if os.path.exists(img_file):
         left_vals = [v['Left'] for v in st.session_state.visits]
         right_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Plot Points (Green and Red)
+        # Plot Points
         ax.scatter(ages, left_vals, color='#008000', s=60, edgecolors='white', linewidths=0.5, zorder=10)
         ax.scatter(ages, right_vals, color='#FF0000', s=60, edgecolors='white', linewidths=0.5, zorder=10)
 
@@ -68,14 +68,14 @@ if os.path.exists(img_file):
         Line2D([0], [0], marker='o', color='w', label='Right eye', markerfacecolor='#FF0000', markersize=8)
     ]
     
-    # bbox_to_anchor=(0.12, 0.95) moves it 12% from the left and 95% from the bottom
-    # This should clear the Y-axis numbers (like 28, 27, 26)
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.10, 0.96), 
-              frameon=True, fontsize=10, facecolor='white', framealpha=0.9)
+    # Moved to (0.18, 0.94) - This pushes it significantly clear of the Y-axis labels.
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.94), 
+              frameon=True, fontsize=10, facecolor='white', framealpha=0.9, edgecolor='#CCCCCC')
 
     plt.title(f"Axial Length Progression: {name} ({gender})", fontsize=18, fontweight='bold', pad=25)
     
     if notes:
+        # Notes positioned at the bottom left
         plt.figtext(0.12, 0.05, f"Notes: {notes}", fontsize=11, style='italic', wrap=True)
     
     ax.axis('off')
