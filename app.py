@@ -8,7 +8,7 @@ from matplotlib.lines import Line2D
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# 2. CACHING: This makes switching between Male/Female and loading images instant
+# 2. CACHING: Instant background loading
 @st.cache_data
 def load_bg_image(file_path):
     if os.path.exists(file_path):
@@ -50,7 +50,7 @@ img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 img = load_bg_image(img_file)
 
 if img is not None:
-    # ULTRA-FAST PREVIEW: Lower DPI (75) and smaller figure size for the web view
+    # --- PREVIEW RENDER (FAST) ---
     plt.close('all')
     fig, ax = plt.subplots(figsize=(12, 6.5), dpi=75)
     
@@ -64,11 +64,9 @@ if img is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            # Simple scatter - no complex paths
             ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', zorder=10)
             ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', zorder=10)
 
-        # Legend & Title (Simplified for speed)
         legend_elements = [
             Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=8),
             Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=8)
@@ -79,23 +77,22 @@ if img is not None:
         
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # --- 5. ON-DEMAND HIGH-RES DOWNLOAD ---
-        # We only generate the heavy 300 DPI image IF there is data AND the user clicks
+        # --- 5. INSTANT DOWNLOAD (PRE-PREPARED) ---
         if st.session_state.visits:
-            with st.expander("💾 Generate High-Resolution Report"):
-                if st.button("Create PNG"):
-                    with st.spinner("Rendering high-res..."):
-                        fig_hr, ax_hr = plt.subplots(figsize=(15, 8.5), dpi=300)
-                        ax_hr.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
-                        ax_hr.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', zorder=10)
-                        ax_hr.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', zorder=10)
-                        ax_hr.axis('off')
-                        
-                        buf = io.BytesIO()
-                        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
-                        buf.seek(0)
-                        st.download_button("Download Now", data=buf, file_name=f"AXL_{name}.png", mime="image/png")
-                        plt.close(fig_hr)
+            # Prepare the high-res buffer in the background
+            buf = io.BytesIO()
+            # We use a slightly smaller DPI (200) here to keep the "Update" speed fast 
+            # while still being print-quality.
+            plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
+            buf.seek(0)
+            
+            st.download_button(
+                label="💾 Download Report (.png)",
+                data=buf,
+                file_name=f"AXL_Report_{name}.png",
+                mime="image/png",
+                width='stretch'
+            )
 
     finally:
         plt.close(fig)
