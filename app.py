@@ -2,6 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os
+import io
 import pandas as pd
 from matplotlib.lines import Line2D
 
@@ -25,10 +26,10 @@ with st.sidebar:
     st.markdown("### 👤 Patient Profile")
     
     st.caption("Patient Name or ID")
-    name = st.text_input("Name", "Unnamed", label_visibility="collapsed")
+    name = st.text_input("Name", "Unnamed", key="patient_name", label_visibility="collapsed")
     
     st.caption("Biological Gender")
-    gender = st.selectbox("Gender", ["Female", "Male"], label_visibility="collapsed")
+    gender = st.selectbox("Gender", ["Female", "Male"], key="patient_gender", label_visibility="collapsed")
     
     st.divider()
     
@@ -60,13 +61,12 @@ st.title("👁️ Axial Length History Tracker")
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
 if os.path.exists(img_file):
-    # High DPI for clarity
+    # Create the figure with high DPI
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=200)
     img = mpimg.imread(img_file)
     
     # Image Calibration
     ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
-    
     ax.set_xlim(3.8, 20.0)
     ax.set_ylim(19.5, 28.5)
     
@@ -75,11 +75,11 @@ if os.path.exists(img_file):
         l_vals = [v['Left'] for v in st.session_state.visits]
         r_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Connecting lines removed - using scatter dots only
-        ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.5, zorder=10)
-        ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.5, zorder=10)
+        # Scatter dots only
+        ax.scatter(ages, l_vals, color='#008000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
+        ax.scatter(ages, r_vals, color='#FF0000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
 
-    # Legend Positioned to avoid y-axis overlap
+    # Legend & Title
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
         Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
@@ -90,18 +90,28 @@ if os.path.exists(img_file):
     plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=35)
     ax.axis('off')
     
+    # --- FIX: Save to Buffer BEFORE st.pyplot() ---
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
+    buf.seek(0)
+    
+    # Show on app
     st.pyplot(fig, use_container_width=True, clear_figure=True)
 
-    # Export Report
-    save_fn = f"AXL_Report_{name}.png"
-    plt.savefig(save_fn, dpi=300, bbox_inches='tight')
-    
-    with open(save_fn, "rb") as f:
-        st.download_button(
-            label="💾 Download High-Resolution Report",
-            data=f,
-            file_name=save_fn,
-            mime="image/png"
-        )
+    # Export Button
+    st.download_button(
+        label="💾 Download High-Resolution Report (.png)",
+        data=buf,
+        file_name=f"AXL_Report_{name}.png",
+        mime="image/png"
+    )
+
+    # Summary Metrics (Optional but helpful)
+    if len(st.session_state.visits) > 1:
+        v = st.session_state.visits
+        total_growth_l = v[-1]['Left'] - v[0]['Left']
+        total_growth_r = v[-1]['Right'] - v[0]['Right']
+        st.info(f"📊 **Total Elongation since first visit:** Left: {total_growth_l:.2f}mm | Right: {total_growth_r:.2f}mm")
+
 else:
     st.error(f"Background image '{img_file}' not found.")
