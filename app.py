@@ -15,11 +15,10 @@ def load_bg_image(file_path):
         return mpimg.imread(file_path)
     return None
 
-# Initialize Session State
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 3. Sidebar: Patient Management ---
+# --- 2. Sidebar: Patient Management ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Name", "Unnamed")
@@ -43,19 +42,19 @@ with st.sidebar:
             st.session_state.visits.pop()
             st.rerun()
 
-# --- 4. Main Display Area ---
+# --- 3. Main Display Area ---
 st.title("👁️ Axial Length History Tracker")
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 img = load_bg_image(img_file)
 
 if img is not None:
-    # --- PREVIEW RENDER (FAST) ---
     plt.close('all')
-    fig, ax = plt.subplots(figsize=(12, 6.5), dpi=75)
+    # Use a consistent figure size for both screen and save
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100)
     
     try:
-        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest')
+        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
         ax.set_xlim(3.8, 20.0)
         ax.set_ylim(19.5, 28.5)
         
@@ -64,28 +63,26 @@ if img is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', zorder=10)
-            ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', zorder=10)
+            ax.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
 
         legend_elements = [
-            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=8),
-            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=8)
+            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=10)
         ]
         ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True)
-        plt.title(f"Growth Record: {name} ({gender})", fontsize=18, fontweight='bold', pad=8)
+        plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
         ax.axis('off')
+
+        # --- CRITICAL FIX: Save to buffer BEFORE displaying with st.pyplot ---
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
+        buf.seek(0)
         
+        # Now display to the web app
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # --- 5. INSTANT DOWNLOAD (PRE-PREPARED) ---
         if st.session_state.visits:
-            # Prepare the high-res buffer in the background
-            buf = io.BytesIO()
-            # We use a slightly smaller DPI (200) here to keep the "Update" speed fast 
-            # while still being print-quality.
-            plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
-            buf.seek(0)
-            
             st.download_button(
                 label="💾 Download Report (.png)",
                 data=buf,
