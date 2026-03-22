@@ -71,16 +71,17 @@ if os.path.exists(img_file):
         ax.scatter(ages, l_vals, color='#008000', s=80, edgecolors='white', zorder=10)
         ax.scatter(ages, r_vals, color='#FF0000', s=80, edgecolors='white', zorder=10)
 
-    # (2) Legend: Moved to the right (x=0.15) to clear the y-axis labels
+    # (2) Legend: Shifted further right (x=0.18) to ensure it clears the Y-axis numbers
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Left Eye', markerfacecolor='#008000', markersize=10),
         Line2D([0], [0], marker='o', color='w', label='Right Eye', markerfacecolor='#FF0000', markersize=10)
     ]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.12, 0.90), 
+    # bbox_to_anchor=(x, y) -> increased x to 0.18
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.90), 
               frameon=True, facecolor='white', framealpha=0.9, fontsize=12)
 
-    # (3) Centered Title
-    plt.title(f"Patient Record: {name} ({gender})", fontsize=20, fontweight='bold', pad=25)
+    # (3) Centered Title - padding increased for a cleaner look
+    plt.title(f"Patient Record: {name} ({gender})", fontsize=20, fontweight='bold', pad=30)
     
     ax.axis('off')
     st.pyplot(fig, use_container_width=True)
