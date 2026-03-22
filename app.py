@@ -46,18 +46,16 @@ with st.sidebar:
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
 if os.path.exists(img_file):
-    # Higher DPI for the figure to help with low-res backgrounds
-    fig, ax = plt.subplots(figsize=(12, 10), dpi=100)
+    fig, ax = plt.subplots(figsize=(12, 10))
     img = mpimg.imread(img_file)
     
-    # 1. THE "ZOOM OUT" ADJUSTMENT
-    # We set the extent to match the actual grid: 4 to 18 years, 20 to 28 mm.
-    # We then set the axis limits wider than the image to create "white space" 
-    # which makes the low-res image look like a clean inset.
+    # Calibration Alignment (The actual grid is 4 to 18 years)
     ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos') 
     
-    # Set limits slightly wider than the image to "Zoom Out"
-    ax.set_xlim(3.5, 18.5)
+    # 1. SHIFT CHART LEFT
+    # By setting xlim to (3.8, 21), we add more space on the right (up to age 21)
+    # This pushes the chart (which ends at 18) to the left.
+    ax.set_xlim(3.8, 21.0)
     ax.set_ylim(19.5, 28.5)
     
     if st.session_state.visits:
@@ -66,35 +64,31 @@ if os.path.exists(img_file):
         right_vals = [v['Right'] for v in st.session_state.visits]
         
         # Plot Points
-        ax.scatter(ages, left_vals, color='#008000', s=50, edgecolors='white', linewidths=0.5, zorder=10)
-        ax.scatter(ages, right_vals, color='#FF0000', s=50, edgecolors='white', linewidths=0.5, zorder=10)
+        ax.scatter(ages, left_vals, color='#008000', s=55, edgecolors='white', linewidths=0.5, zorder=10)
+        ax.scatter(ages, right_vals, color='#FF0000', s=55, edgecolors='white', linewidths=0.5, zorder=10)
 
-    # --- Re-positioned Legend ---
+    # --- Legend Positioning ---
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Left eye', markerfacecolor='#008000', markersize=7),
-        Line2D([0], [0], marker='o', color='w', label='Right eye', markerfacecolor='#FF0000', markersize=7)
+        Line2D([0], [0], marker='o', color='w', label='Left eye', markerfacecolor='#008000', markersize=8),
+        Line2D([0], [0], marker='o', color='w', label='Right eye', markerfacecolor='#FF0000', markersize=8)
     ]
     
-    # Placed in a safe "white space" corner
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.05, 0.98), 
-              frameon=True, fontsize=9, facecolor='white', framealpha=0.8)
+    # Placed slightly in from the left edge
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.05, 0.95), 
+              frameon=True, fontsize=10, facecolor='white', framealpha=0.9)
 
-    plt.title(f"Axial Length Progression: {name} ({gender})", fontsize=16, fontweight='bold', pad=20)
+    plt.title(f"Axial Length Progression: {name} ({gender})", fontsize=18, fontweight='bold', pad=25)
     
     if notes:
-        plt.figtext(0.12, 0.04, f"Notes: {notes}", fontsize=10, style='italic', wrap=True)
+        plt.figtext(0.12, 0.05, f"Notes: {notes}", fontsize=11, style='italic', wrap=True)
     
-    # We keep the axis 'off' to hide the computer-generated scale 
-    # and rely on the chart's own scale.
     ax.axis('off')
     st.pyplot(fig)
     
-    # --- HIGH RES EXPORT ---
+    # High-Res Download
     save_fn = f"AXL_Report_{name}.png"
-    # Exporting at 400 DPI helps the final PNG look professional
     plt.savefig(save_fn, dpi=400, bbox_inches='tight')
-    
     with open(save_fn, "rb") as f:
-        st.download_button("📩 Download High-Res Report", f, file_name=save_fn, mime="image/png")
+        st.download_button("📩 Download High-Resolution Report", f, file_name=save_fn, mime="image/png")
 else:
     st.error("Chart images not found.")
