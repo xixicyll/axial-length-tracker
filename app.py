@@ -65,7 +65,7 @@ if os.path.exists(img_file):
     # --- Simplified Legend ---
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Left', markerfacecolor='green', markersize=8),
-        Line2D([0], [0], marker='o', color='w', label='Right)', markerfacecolor='red', markersize=8)
+        Line2D([0], [0], marker='o', color='w', label='Right', markerfacecolor='red', markersize=8)
     ]
     ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True, fontsize=10)
 
