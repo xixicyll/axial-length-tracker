@@ -70,7 +70,7 @@ with st.sidebar:
             st.rerun()
 
 # --- 3. Main Display Area ---
-st.title("AXIAL LENGTH CLINICAL HISTORY")
+st.title(""👁️ Axial Length History Tracker"")
 
 # Restored Patient Info Bar
 today = datetime.now().strftime("%d %b %Y")
@@ -121,7 +121,7 @@ if img is not None:
 
         if st.session_state.visits:
             st.download_button(
-                label="📥 EXPORT CLINICAL GROWTH REPORT",
+                label="📥 EXPORT REPORT",
                 data=buf,
                 file_name=f"AXL_Report_{name.replace(' ', '_')}.png",
                 mime="image/png",
