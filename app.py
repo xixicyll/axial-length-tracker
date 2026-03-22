@@ -32,7 +32,6 @@ with st.sidebar:
     
     st.divider()
     
-    # Updated Label as requested
     st.markdown("### ➕ Add New Measurement")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
     
@@ -65,7 +64,7 @@ if os.path.exists(img_file):
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=200)
     img = mpimg.imread(img_file)
     
-    # Image Calibration (Extent must match the coordinates of your underlying chart)
+    # Image Calibration
     ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
     
     ax.set_xlim(3.8, 20.0)
@@ -76,11 +75,9 @@ if os.path.exists(img_file):
         l_vals = [v['Left'] for v in st.session_state.visits]
         r_vals = [v['Right'] for v in st.session_state.visits]
         
-        ax.plot(ages, l_vals, color='#008000', alpha=0.7, lw=2.5, zorder=5)
-        ax.plot(ages, r_vals, color='#FF0000', alpha=0.7, lw=2.5, zorder=5)
-        
-        ax.scatter(ages, l_vals, color='#008000', s=90, edgecolors='white', linewidth=1.5, zorder=10)
-        ax.scatter(ages, r_vals, color='#FF0000', s=90, edgecolors='white', linewidth=1.5, zorder=10)
+        # Connecting lines removed - using scatter dots only
+        ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.5, zorder=10)
+        ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.5, zorder=10)
 
     # Legend Positioned to avoid y-axis overlap
     legend_elements = [
