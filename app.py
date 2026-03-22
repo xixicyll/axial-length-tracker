@@ -8,32 +8,48 @@ from matplotlib.lines import Line2D
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# CUSTOM CSS: Make the Download Button "Pop"
+# --- CUSTOM CSS: Professional Clinical Theme ---
 st.markdown("""
     <style>
-    /* Primary button (Update Chart) */
-    div.stButton > button:first-child {
-        border-radius: 8px;
+    /* 1. Global Button Styling */
+    .stButton > button {
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* 2. Update Chart (Dark Navy Style) */
+    div.stButton > button[kind="primary"] {
+        background-color: #1a2a44 !important; /* Deep Navy */
+        border: 1px solid #101a2b !important;
+        color: white !important;
+        font-weight: 500 !important;
     }
     
-    /* Target the Download Button specifically via its label */
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #243b61 !important;
+        border-color: #1a2a44 !important;
+    }
+
+    /* 3. Download Report (Professional Steel Blue) */
     div.stDownloadButton > button {
-        background-color: #007BFF !important;
+        background-color: #4682B4 !important; /* Steel Blue - Professional, not too bright */
         color: white !important;
-        font-weight: bold !important;
-        font-size: 20px !important;
-        height: 3.5rem !important;
-        border: 2px solid #0056b3 !important;
-        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
-        transition: all 0.3s ease;
-        margin-top: 20px;
+        font-weight: 600 !important;
+        font-size: 18px !important;
+        height: 3.2rem !important;
+        border: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+        margin-top: 15px;
     }
     
     div.stDownloadButton > button:hover {
-        background-color: #0056b3 !important;
-        transform: scale(1.02);
-        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+        background-color: #36648B !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        transform: translateY(-1px);
     }
+
+    /* 4. Sidebar spacing */
+    .block-container {padding-top: 2rem;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,6 +76,7 @@ with st.sidebar:
     v_left = cl.number_input("Left (mm)", 18.0, 32.0, 24.00, step=0.01)
     v_right = cr.number_input("Right (mm)", 18.0, 32.0, 24.00, step=0.01)
     
+    # Kind="primary" now targets our Dark Navy CSS
     if st.button("Update Chart", type="primary", width='stretch'):
         st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
         st.session_state.visits.sort(key=lambda x: x['Age'])
@@ -90,37 +107,4 @@ if img is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            ax.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
-
-        legend_elements = [
-            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=10),
-            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=10)
-        ]
-        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True)
-        plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
-        ax.axis('off')
-
-        # Save to buffer BEFORE displaying
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
-        buf.seek(0)
-        
-        st.pyplot(fig, width='stretch', clear_figure=True)
-
-        # --- HIGH VISIBILITY DOWNLOAD BUTTON ---
-        if st.session_state.visits:
-            # We wrap it in a container to apply specific padding/centering
-            st.download_button(
-                label="📥 DOWNLOAD CLINICAL REPORT (PNG)",
-                data=buf,
-                file_name=f"AXL_Report_{name}.png",
-                mime="image/png",
-                width='stretch',
-                type="primary" # Uses the blue theme
-            )
-
-    finally:
-        plt.close(fig)
-else:
-    st.error(f"⚠️ Missing {img_file}")
+            ax.scatter(ages, l_vals, color='#008000', s=120, edgecolors='
