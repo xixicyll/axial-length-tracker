@@ -25,11 +25,11 @@ with st.sidebar:
     st.header("2. Add a Visit")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
     col_os, col_od = st.columns(2)
-    v_os = col_os.number_input("OS (mm)", 18.0, 32.0, 24.00)
-    v_od = col_od.number_input("OD (mm)", 18.0, 32.0, 24.00)
+    v_os = col_os.number_input("Left eye (mm)", 18.0, 32.0, 24.00)
+    v_od = col_od.number_input("Right eye (mm)", 18.0, 32.0, 24.00)
     
     if st.button("➕ Add This Visit", type="primary"):
-        st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
+        st.session_state.visits.append({"Age": v_age, "Left": v_os, "Right": v_od})
         st.session_state.visits = sorted(st.session_state.visits, key=lambda x: x['Age'])
         st.rerun()
 
@@ -50,22 +50,22 @@ if os.path.exists(img_file):
     fig, ax = plt.subplots(figsize=(12, 10))
     img = mpimg.imread(img_file)
     
-    # Calibration Alignment (3.8 to 18.2 Age | 19.8 to 28.2 AXL)
+    # Calibration Alignment
     ax.imshow(img, extent=[3.8, 18.2, 19.8, 28.2]) 
     
     if st.session_state.visits:
         ages = [v['Age'] for v in st.session_state.visits]
-        os_vals = [v['OS'] for v in st.session_state.visits]
-        od_vals = [v['OD'] for v in st.session_state.visits]
+        left_vals = [v['Left'] for v in st.session_state.visits]
+        right_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Plot Points (Reduced size to s=60)
-        ax.scatter(ages, os_vals, color='blue', s=60, edgecolors='white', linewidths=0.5, zorder=10)
-        ax.scatter(ages, od_vals, color='red', s=60, edgecolors='white', linewidths=0.5, zorder=10)
+        # Plot Points (Small size = 60)
+        ax.scatter(ages, left_vals, color='blue', s=60, edgecolors='white', linewidths=0.5, zorder=10)
+        ax.scatter(ages, right_vals, color='red', s=60, edgecolors='white', linewidths=0.5, zorder=10)
 
     # --- Simplified Legend ---
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Left', markerfacecolor='green', markersize=8),
-        Line2D([0], [0], marker='o', color='w', label='Right', markerfacecolor='red', markersize=8)
+        Line2D([0], [0], marker='o', color='w', label='Left eye', markerfacecolor='blue', markersize=8),
+        Line2D([0], [0], marker='o', color='w', label='Right eye', markerfacecolor='red', markersize=8)
     ]
     ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True, fontsize=10)
 
@@ -84,4 +84,4 @@ if os.path.exists(img_file):
     with open(save_fn, "rb") as f:
         st.download_button("📩 Download Professional Report", f, file_name=save_fn, mime="image/png")
 else:
-    st.error("Missing background chart images.")
+    st.error("Missing chart images in GitHub.")
