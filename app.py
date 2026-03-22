@@ -63,11 +63,11 @@ if os.path.exists(img_file):
         od_vals = [v['OD'] for v in st.session_state.visits]
         
         # Plot Lines
-        ax.plot(ages, os_vals, color='blue', linestyle='-', alpha=0.5, linewidth=2, zorder=5)
+        ax.plot(ages, os_vals, color='green', linestyle='-', alpha=0.5, linewidth=2, zorder=5)
         ax.plot(ages, od_vals, color='red', linestyle='-', alpha=0.5, linewidth=2, zorder=5)
         
         # Plot Points
-        ax.scatter(ages, os_vals, color='blue', s=100, edgecolors='white', zorder=10)
+        ax.scatter(ages, os_vals, color='green', s=100, edgecolors='white', zorder=10)
         ax.scatter(ages, od_vals, color='red', s=100, edgecolors='white', zorder=10)
 
     # --- Simplified Legend (Color Only) ---
