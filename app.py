@@ -128,7 +128,7 @@ if img is not None:
         # --- REFINED DOWNLOAD BUTTON ---
         if st.session_state.visits:
             st.download_button(
-                label="📥 DOWNLOAD CLINICAL REPORT",
+                label="📥 DOWNLOAD REPORT",
                 data=buf,
                 file_name=f"AXL_Report_{name}.png",
                 mime="image/png",
