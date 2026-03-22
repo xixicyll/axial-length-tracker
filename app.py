@@ -53,7 +53,7 @@ with st.sidebar:
     name = st.text_input("Full Name", "Unnamed Patient")
     gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
-    st.subheader("➕ New Entry")
+    st.subheader("➕ New Measurement")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
     cl, cr = st.columns(2)
     v_left = cl.number_input("OS (mm)", 18.0, 32.0, 24.00, step=0.01)
