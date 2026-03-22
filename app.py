@@ -37,7 +37,6 @@ with st.sidebar:
     
     if st.button("Update Chart", type="primary", width='stretch'):
         st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
-        # Sort silently without a full rerun if possible
         st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
@@ -54,14 +53,22 @@ with st.sidebar:
 # --- 3. Main Display Area ---
 st.title("👁️ Axial Length History Tracker")
 
+# DIAGNOSTIC: Show data table even if chart fails
+if st.session_state.visits:
+    with st.expander("📋 View Measurement Log", expanded=False):
+        st.table(pd.DataFrame(st.session_state.visits))
+
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
-if os.path.exists(img_file):
-    # CRITICAL: Always use plt.close() at the START of the plotting block 
-    # to clear any "ghost" figures from previous failed runs.
+# Check if image exists and notify the user
+if not os.path.exists(img_file):
+    st.warning(f"⚠️ **File Not Found:** App is looking for `{img_file}`. Please ensure this file is in your GitHub root folder.")
+    st.info("Files currently detected in directory: " + str(os.listdir('.')))
+else:
+    # Use a fresh figure for every run
     plt.close('all')
-    
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
+    
     try:
         img = mpimg.imread(img_file)
         ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
@@ -73,7 +80,6 @@ if os.path.exists(img_file):
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            # Use scatter dots only
             ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
             ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
 
@@ -88,26 +94,17 @@ if os.path.exists(img_file):
         plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
         ax.axis('off')
         
-        # Display the plot
+        # 2026 Syntax
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # Download Logic
+        # Download Buffer
         if st.session_state.visits:
             buf = io.BytesIO()
-            # Save at 300 DPI for clinical quality
             plt.savefig(buf, format="png", dpi=300, bbox_inches='tight', pad_inches=0.1)
             buf.seek(0)
+            st.download_button(label="💾 Download PNG", data=buf, file_name=f"AXL_{name}.png", mime="image/png")
             
-            st.download_button(
-                label="💾 Download High-Resolution Report (.png)",
-                data=buf,
-                file_name=f"AXL_Report_{name}.png",
-                mime="image/png"
-            )
+    except Exception as e:
+        st.error(f"❌ **Plotting Error:** {e}")
     finally:
-        # Prevent memory leaks
         plt.close(fig)
-
-else:
-    st.error(f"⚠️ Image not found: {img_file}")
-    st.info("Check if files are in the main GitHub folder.")
