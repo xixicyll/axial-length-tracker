@@ -76,4 +76,46 @@ if os.path.exists(img_file):
         l_vals = [v['Left'] for v in st.session_state.visits]
         r_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Scatter dots only - white edge makes them pop against the background}' not found.")
+        # Scatter dots only - white edge makes them pop against the background
+        ax.scatter(ages, l_vals, color='#008000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
+        ax.scatter(ages, r_vals, color='#FF0000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
+
+    # Legend: Shifted right (0.18) to avoid y-axis overlap
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), 
+              frameon=True, facecolor='white', framealpha=0.9, fontsize=12, shadow=True)
+
+    # Title: Pad reduced to 10 to minimize blank space
+    plt.title(f"Axial Length Growth Record: {name} ({gender})", 
+              fontsize=22, fontweight='bold', pad=10)
+    
+    ax.axis('off')
+    
+    # --- SAVE TO BUFFER: Fixes the empty download file issue ---
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=300, bbox_inches='tight', pad_inches=0.1)
+    buf.seek(0)
+    
+    # Render the chart in Streamlit
+    st.pyplot(fig, use_container_width=True, clear_figure=True)
+
+    # --- 4. Export & Metrics ---
+    st.download_button(
+        label="💾 Download High-Resolution Report (.png)",
+        data=buf,
+        file_name=f"AXL_Report_{name}.png",
+        mime="image/png"
+    )
+
+    if len(st.session_state.visits) > 1:
+        v = st.session_state.visits
+        total_growth_l = v[-1]['Left'] - v[0]['Left']
+        total_growth_r = v[-1]['Right'] - v[0]['Right']
+        st.info(f"📊 **Total Growth Summary:** Left: {total_growth_l:.2f} mm | Right: {total_growth_r:.2f} mm")
+
+else:
+    st.error(f"Missing background image: '{img_file}'")
+    st.info("Ensure the .jfif growth curve files are in the same folder as app.py")
