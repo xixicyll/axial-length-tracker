@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os
 import pandas as pd
+from matplotlib.lines import Line2D
 
 st.set_page_config(page_title="Myopia Axial Tracker", layout="wide")
 
-st.title("👁️ Axial Length History & Progression Tracker")
+st.title("👁️ Axial Length History Tracker")
 
 # --- Initialize Data Storage ---
 if 'visits' not in st.session_state:
@@ -17,7 +18,7 @@ with st.sidebar:
     st.header("1. Patient Information")
     name = st.text_input("Patient Name / ID", "Unnamed")
     gender = st.selectbox("Gender", ["Female", "Male"])
-    notes = st.text_area("Clinical Notes", "e.g., Started Ortho-K")
+    notes = st.text_area("Clinical Notes", "")
     
     st.divider()
     
@@ -29,23 +30,18 @@ with st.sidebar:
     
     if st.button("➕ Add This Visit", type="primary"):
         st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
-        # Sort by age so the lines connect chronologically
         st.session_state.visits = sorted(st.session_state.visits, key=lambda x: x['Age'])
         st.rerun()
 
-    if st.button("🗑️ Clear All Visits"):
+    col_del1, col_del2 = st.columns(2)
+    if col_del1.button("🔙 Undo Last"):
+        if st.session_state.visits:
+            st.session_state.visits.pop()
+            st.rerun()
+            
+    if col_del2.button("🗑️ Clear All"):
         st.session_state.visits = []
         st.rerun()
-
-# --- Calculations ---
-growth_text = ""
-if len(st.session_state.visits) >= 2:
-    first, last = st.session_state.visits[0], st.session_state.visits[-1]
-    years = last['Age'] - first['Age']
-    if years > 0:
-        os_rate = (last['OS'] - first['OS']) / years
-        od_rate = (last['OD'] - first['OD']) / years
-        growth_text = f"Progression Rate: OS {os_rate:.2f} mm/yr | OD {od_rate:.2f} mm/yr"
 
 # --- Main Page: Plotting ---
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
@@ -54,7 +50,7 @@ if os.path.exists(img_file):
     fig, ax = plt.subplots(figsize=(12, 10))
     img = mpimg.imread(img_file)
     
-    # Calibration Alignment
+    # Calibration Alignment (3.8 to 18.2 Age | 19.8 to 28.2 AXL)
     ax.imshow(img, extent=[3.8, 18.2, 19.8, 28.2]) 
     
     if st.session_state.visits:
@@ -62,32 +58,22 @@ if os.path.exists(img_file):
         os_vals = [v['OS'] for v in st.session_state.visits]
         od_vals = [v['OD'] for v in st.session_state.visits]
         
-        # Plot Lines
-        ax.plot(ages, os_vals, color='green', linestyle='-', alpha=0.5, linewidth=2, zorder=5)
-        ax.plot(ages, od_vals, color='red', linestyle='-', alpha=0.5, linewidth=2, zorder=5)
-        
-        # Plot Points
-        ax.scatter(ages, os_vals, color='green', s=100, edgecolors='white', zorder=10)
-        ax.scatter(ages, od_vals, color='red', s=100, edgecolors='white', zorder=10)
+        # Plot Points (Reduced size to s=60)
+        ax.scatter(ages, os_vals, color='blue', s=60, edgecolors='white', linewidths=0.5, zorder=10)
+        ax.scatter(ages, od_vals, color='red', s=60, edgecolors='white', linewidths=0.5, zorder=10)
 
-    # --- Simplified Legend (Color Only) ---
-    from matplotlib.lines import Line2D
+    # --- Simplified Legend ---
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='blue', markersize=10),
-        Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='red', markersize=10)
+        Line2D([0], [0], marker='o', color='w', label='Left', markerfacecolor='green', markersize=8),
+        Line2D([0], [0], marker='o', color='w', label='Right)', markerfacecolor='red', markersize=8)
     ]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True)
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True, fontsize=10)
 
     # Titles and Meta Data
     plt.title(f"Axial Length Progression: {name}", fontsize=18, fontweight='bold', pad=25)
     
-    # Footer info (Notes + Growth Rate)
-    footer_lines = []
-    if growth_text: footer_lines.append(growth_text)
-    if notes: footer_lines.append(f"Notes: {notes}")
-    
-    if footer_lines:
-        plt.figtext(0.12, 0.03, "\n".join(footer_lines), fontsize=11, style='italic', wrap=True)
+    if notes:
+        plt.figtext(0.12, 0.05, f"Notes: {notes}", fontsize=11, style='italic', wrap=True)
     
     ax.axis('off')
     st.pyplot(fig)
