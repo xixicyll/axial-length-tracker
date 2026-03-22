@@ -8,7 +8,35 @@ from matplotlib.lines import Line2D
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# 2. CACHING: Instant background loading
+# CUSTOM CSS: Make the Download Button "Pop"
+st.markdown("""
+    <style>
+    /* Primary button (Update Chart) */
+    div.stButton > button:first-child {
+        border-radius: 8px;
+    }
+    
+    /* Target the Download Button specifically via its label */
+    div.stDownloadButton > button {
+        background-color: #007BFF !important;
+        color: white !important;
+        font-weight: bold !important;
+        font-size: 20px !important;
+        height: 3.5rem !important;
+        border: 2px solid #0056b3 !important;
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+        transition: all 0.3s ease;
+        margin-top: 20px;
+    }
+    
+    div.stDownloadButton > button:hover {
+        background-color: #0056b3 !important;
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 @st.cache_data
 def load_bg_image(file_path):
     if os.path.exists(file_path):
@@ -18,7 +46,7 @@ def load_bg_image(file_path):
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. Sidebar: Patient Management ---
+# --- 2. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Name", "Unnamed")
@@ -50,7 +78,6 @@ img = load_bg_image(img_file)
 
 if img is not None:
     plt.close('all')
-    # Use a consistent figure size for both screen and save
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100)
     
     try:
@@ -74,21 +101,23 @@ if img is not None:
         plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
         ax.axis('off')
 
-        # --- CRITICAL FIX: Save to buffer BEFORE displaying with st.pyplot ---
+        # Save to buffer BEFORE displaying
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
         buf.seek(0)
         
-        # Now display to the web app
         st.pyplot(fig, width='stretch', clear_figure=True)
 
+        # --- HIGH VISIBILITY DOWNLOAD BUTTON ---
         if st.session_state.visits:
+            # We wrap it in a container to apply specific padding/centering
             st.download_button(
-                label="💾 Download Report (.png)",
+                label="📥 DOWNLOAD CLINICAL REPORT (PNG)",
                 data=buf,
                 file_name=f"AXL_Report_{name}.png",
                 mime="image/png",
-                width='stretch'
+                width='stretch',
+                type="primary" # Uses the blue theme
             )
 
     finally:
