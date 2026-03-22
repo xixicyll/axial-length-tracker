@@ -9,17 +9,21 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# Optimized CSS (Clinical Blue Palette)
+# Clinical CSS
 st.markdown("""
     <style>
     h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; }
     .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 12px; margin-bottom: 15px; }
     div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; }
-    div.stDownloadButton > button { background-color: #4682B4 !important; color: white !important; font-weight: 600; }
+    div.stDownloadButton > button { 
+        background-color: #4682B4 !important; 
+        color: white !important; 
+        font-weight: 600 !important;
+        width: 100% !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CACHING: This is the #1 speed boost. We load the image into RAM once.
 @st.cache_data
 def get_bg_image(file_path):
     if os.path.exists(file_path):
@@ -29,7 +33,7 @@ def get_bg_image(file_path):
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 3. Sidebar: Fast Input ---
+# --- 2. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Full Name", "Unnamed Patient")
@@ -45,53 +49,56 @@ with st.sidebar:
         st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
-# --- 4. Main Display & Rendering Logic ---
+# --- 3. Main Display ---
 st.title("AXIAL LENGTH CLINICAL HISTORY")
 
 st.markdown(f"""<div class="patient-bar"><strong>Patient:</strong> {name.upper()} &nbsp; | &nbsp; 
 <strong>Date:</strong> {datetime.now().strftime("%d %b %Y")}</div>""", unsafe_allow_html=True)
 
-# 5. FRAGMENTED RENDERING: Only redraw the chart area
-@st.fragment
-def render_chart(gender, name):
-    img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
-    img = get_bg_image(img_file)
+img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
+img = get_bg_image(img_file)
+
+if img is not None:
+    plt.close('all')
+    # Using 100 DPI for a balance of speed and clarity
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     
-    if img is not None:
-        # Optimization: Use lower DPI for the screen preview (Instant response)
-        plt.close('all')
-        fig, ax = plt.subplots(figsize=(12, 6.5), dpi=85) 
-        
-        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest') # 'nearest' is faster
+    try:
+        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
         ax.set_xlim(3.8, 20.0)
         ax.set_ylim(19.5, 28.5)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=100, edgecolors='white', zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=100, edgecolors='white', zorder=10)
+            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
 
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=9),
-            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=9)
-        ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True)
+            Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
+        ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True, edgecolor='#1a2a44')
         
-        plt.title(f"AXIAL LENGTH GROWTH: {name.upper()}", fontsize=16, fontfamily='serif', color='#1a2a44')
+        plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", fontsize=20, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
         ax.axis('off')
 
-        # Display preview
+        # --- CRITICAL: Save to buffer BEFORE displaying with st.pyplot ---
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
+        buf.seek(0)
+        
+        # Display the chart on screen
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # Download Logic (Isolated so it doesn't slow down the preview)
+        # Download Button
         if st.session_state.visits:
-            with st.expander("📝 Prepare Export"):
-                if st.button("Finalize PNG"):
-                    buf = io.BytesIO()
-                    # Only now do we do the slow, high-quality 300 DPI render
-                    fig.set_dpi(300) 
-                    fig.savefig(buf, format="png", bbox_inches='tight')
-                    st.download_button("📥 DOWNLOAD REPORT", buf, f"AXL_{name}.png", "image/png")
-    else:
-        st.error(f"Missing background image: {img_file}")
+            st.download_button(
+                label="📥 DOWNLOAD CLINICAL GROWTH REPORT",
+                data=buf,
+                file_name=f"AXL_Report_{name.replace(' ', '_')}.png",
+                mime="image/png"
+            )
 
-render_chart(gender, name)
+    finally:
+        plt.close(fig)
+else:
+    st.error(f"⚠️ Reference Image Missing: {img_file}")
