@@ -4,26 +4,20 @@ import matplotlib.image as mpimg
 import os
 import io
 from matplotlib.lines import Line2D
-from datetime import datetime
 
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# Clinical CSS
+# Clinical CSS (Simplified for speed)
 st.markdown("""
     <style>
-    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; }
-    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 12px; margin-bottom: 15px; }
+    h1 { font-family: serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; }
     div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; }
-    div.stDownloadButton > button { 
-        background-color: #4682B4 !important; 
-        color: white !important; 
-        font-weight: 600 !important;
-        width: 100% !important;
-    }
+    div.stDownloadButton > button { background-color: #4682B4 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
+# 2. CACHING: Keep image in RAM
 @st.cache_data
 def get_bg_image(file_path):
     if os.path.exists(file_path):
@@ -33,7 +27,7 @@ def get_bg_image(file_path):
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. Sidebar ---
+# --- 3. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Full Name", "Unnamed Patient")
@@ -49,56 +43,52 @@ with st.sidebar:
         st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
-# --- 3. Main Display ---
+# --- 4. Main Display ---
 st.title("AXIAL LENGTH CLINICAL HISTORY")
-
-st.markdown(f"""<div class="patient-bar"><strong>Patient:</strong> {name.upper()} &nbsp; | &nbsp; 
-<strong>Date:</strong> {datetime.now().strftime("%d %b %Y")}</div>""", unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 img = get_bg_image(img_file)
 
 if img is not None:
+    # SPEED OPTIMIZATION: Close all figures immediately
     plt.close('all')
-    # Using 100 DPI for a balance of speed and clarity
-    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
+    
+    # Using a smaller figsize for the screen to speed up the rasterization
+    fig, ax = plt.subplots(figsize=(10, 5.5), dpi=80) 
     
     try:
-        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
+        # 'nearest' interpolation is the absolute fastest way to draw an image
+        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest')
         ax.set_xlim(3.8, 20.0)
         ax.set_ylim(19.5, 28.5)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
+            # Batch plotting: Scatter is faster than Plot
+            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=80, edgecolors='white', zorder=10)
+            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=80, edgecolors='white', zorder=10)
 
+        # Basic legend - heavy styling removed for speed
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
-            Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
-        ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True, edgecolor='#1a2a44')
+            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000'),
+            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000')
+        ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True)
         
-        plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", fontsize=20, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
+        plt.title(f"PATIENT: {name.upper()}", loc='left', fontsize=12, fontweight='bold')
         ax.axis('off')
 
-        # --- CRITICAL: Save to buffer BEFORE displaying with st.pyplot ---
+        # Buffer for the download (Done once per rerun)
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=200, bbox_inches='tight')
+        plt.savefig(buf, format="png", dpi=150) # Reduced DPI for faster buffer creation
         buf.seek(0)
         
-        # Display the chart on screen
+        # Display
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # Download Button
         if st.session_state.visits:
-            st.download_button(
-                label="📥 DOWNLOAD CLINICAL GROWTH REPORT",
-                data=buf,
-                file_name=f"AXL_Report_{name.replace(' ', '_')}.png",
-                mime="image/png"
-            )
+            st.download_button("📥 DOWNLOAD REPORT", buf, f"AXL_{name}.png", "image/png")
 
     finally:
         plt.close(fig)
 else:
-    st.error(f"⚠️ Reference Image Missing: {img_file}")
+    st.error(f"⚠️ Image Missing: {img_file}")
