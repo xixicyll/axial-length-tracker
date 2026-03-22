@@ -30,7 +30,6 @@ with st.sidebar:
     
     if st.button("➕ Add This Visit", type="primary"):
         st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
-        # Sort by age so any past visits added later fall into place
         st.session_state.visits = sorted(st.session_state.visits, key=lambda x: x['Age'])
         st.rerun()
 
@@ -51,8 +50,7 @@ if os.path.exists(img_file):
     fig, ax = plt.subplots(figsize=(12, 10))
     img = mpimg.imread(img_file)
     
-    # Calibration Alignment (Adjust if dots don't line up perfectly)
-    # [min_age, max_age, min_length, max_length]
+    # Calibration Alignment
     ax.imshow(img, extent=[3.8, 18.2, 19.8, 28.2]) 
     
     if st.session_state.visits:
@@ -60,33 +58,33 @@ if os.path.exists(img_file):
         left_vals = [v['Left'] for v in st.session_state.visits]
         right_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Plot Points
-        # Left eye: Green (#008000), small size (60)
-        # Right eye: Red (#FF0000), small size (60)
+        # Plot Points (Green and Red)
         ax.scatter(ages, left_vals, color='#008000', s=60, edgecolors='white', linewidths=0.5, zorder=10)
         ax.scatter(ages, right_vals, color='#FF0000', s=60, edgecolors='white', linewidths=0.5, zorder=10)
 
-    # --- Updated Legend (Green/Red) ---
+    # --- Shifted Legend ---
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='Left eye', markerfacecolor='#008000', markersize=8),
         Line2D([0], [0], marker='o', color='w', label='Right eye', markerfacecolor='#FF0000', markersize=8)
     ]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True, fontsize=10, facecolor='white', framealpha=0.9)
+    
+    # bbox_to_anchor=(0.12, 0.95) moves it 12% from the left and 95% from the bottom
+    # This should clear the Y-axis numbers (like 28, 27, 26)
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.10, 0.96), 
+              frameon=True, fontsize=10, facecolor='white', framealpha=0.9)
 
-    # Titles and Meta Data
     plt.title(f"Axial Length Progression: {name} ({gender})", fontsize=18, fontweight='bold', pad=25)
     
     if notes:
         plt.figtext(0.12, 0.05, f"Notes: {notes}", fontsize=11, style='italic', wrap=True)
     
-    # Hide the extra axes (use the chart's printed grid instead)
     ax.axis('off')
     st.pyplot(fig)
     
     # Download
-    save_fn = f"AXL_Report_{name}_{gender}.png"
+    save_fn = f"AXL_Report_{name}.png"
     plt.savefig(save_fn, dpi=300, bbox_inches='tight')
     with open(save_fn, "rb") as f:
-        st.download_button("📩 Download Professional Report (PNG)", f, file_name=save_fn, mime="image/png")
+        st.download_button("📩 Download Professional Report", f, file_name=save_fn, mime="image/png")
 else:
-    st.error(f"Image '{img_file}' not found in GitHub. Please verify the filenames match exactly.")
+    st.error("Missing background chart images.")
