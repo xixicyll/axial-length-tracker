@@ -64,4 +64,60 @@ st.title("👁️ Axial Length History Tracker")
 # Determine which growth curve to load
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
-if os.path.exists(img_file
+if os.path.exists(img_file):
+    # Set high DPI (200) for crystal clear lines and text on-screen
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=200)
+    img = mpimg.imread(img_file)
+    
+    # Image Calibration & Display
+    # 'lanczos' interpolation ensures the background remains as sharp as possible
+    ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
+    
+    # Define plot boundaries
+    ax.set_xlim(3.8, 20.0)
+    ax.set_ylim(19.5, 28.5)
+    
+    # Plot Patient Data
+    if st.session_state.visits:
+        ages = [v['Age'] for v in st.session_state.visits]
+        l_vals = [v['Left'] for v in st.session_state.visits]
+        r_vals = [v['Right'] for v in st.session_state.visits]
+        
+        # Draw progression lines
+        ax.plot(ages, l_vals, color='#008000', alpha=0.7, lw=2.5, zorder=5)
+        ax.plot(ages, r_vals, color='#FF0000', alpha=0.7, lw=2.5, zorder=5)
+        
+        # Add high-visibility markers
+        ax.scatter(ages, l_vals, color='#008000', s=90, edgecolors='white', linewidth=1.5, zorder=10)
+        ax.scatter(ages, r_vals, color='#FF0000', s=90, edgecolors='white', linewidth=1.5, zorder=10)
+
+    # Legend Configuration: Positioned right of the Y-axis numbers
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), 
+              frameon=True, facecolor='white', framealpha=0.9, fontsize=12, shadow=True)
+
+    # Title & Aesthetics
+    plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=35)
+    ax.axis('off')
+    
+    # Display the final sharpened plot
+    st.pyplot(fig, use_container_width=True, clear_figure=True)
+
+    # --- 4. Export Capabilities ---
+    save_fn = f"AXL_Report_{name}.png"
+    plt.savefig(save_fn, dpi=300, bbox_inches='tight')
+    
+    with open(save_fn, "rb") as f:
+        st.download_button(
+            label="💾 Download High-Resolution Report",
+            data=f,
+            file_name=save_fn,
+            mime="image/png",
+            use_container_width=False
+        )
+else:
+    st.error(f"Required background image '{img_file}' is missing from the server.")
+    st.info("Please ensure your .jfif files are in the same folder as app.py.")
