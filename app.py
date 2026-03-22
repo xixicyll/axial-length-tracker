@@ -35,31 +35,32 @@ with st.sidebar:
     v_left = cl.number_input("Left Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
     v_right = cr.number_input("Right Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
     
-    if st.button("Update Chart", type="primary", use_container_width=True):
+    if st.button("Update Chart", type="primary", width='stretch'):
         st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
         st.session_state.visits = sorted(st.session_state.visits, key=lambda x: x['Age'])
         st.rerun()
 
-    if st.button("Undo Last", use_container_width=True):
+    c1, c2 = st.columns(2)
+    if c1.button("Undo Last", width='stretch'):
         if st.session_state.visits: 
             st.session_state.visits.pop()
             st.rerun()
             
-    if st.button("Clear All", use_container_width=True):
+    if c2.button("Clear All", width='stretch'):
         st.session_state.visits = []
         st.rerun()
 
 # --- 3. Main Display Area ---
 st.title("👁️ Axial Length History Tracker")
 
-# Logic to pick the correct background image
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
 if os.path.exists(img_file):
-    # PREVIEW ENGINE: Balanced DPI for speed and clarity
+    # Create figure
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     img = mpimg.imread(img_file)
     
+    # Image Calibration
     ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
     ax.set_xlim(3.8, 20.0)
     ax.set_ylim(19.5, 28.5)
@@ -69,7 +70,6 @@ if os.path.exists(img_file):
         l_vals = [v['Left'] for v in st.session_state.visits]
         r_vals = [v['Right'] for v in st.session_state.visits]
         
-        # Scatter dots only
         ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
         ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
 
@@ -84,11 +84,10 @@ if os.path.exists(img_file):
     plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
     ax.axis('off')
     
-    # Render the chart
-    st.pyplot(fig, use_container_width=True, clear_figure=True)
+    # Render the chart using the new 2026 width syntax
+    st.pyplot(fig, width='stretch', clear_figure=True)
 
-    # --- 4. HIGH-RES EXPORT ---
-    # We generate the high-res file ONLY if there is data, to save memory
+    # --- 4. Export Logic ---
     if st.session_state.visits:
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=300, bbox_inches='tight', pad_inches=0.1)
@@ -100,7 +99,9 @@ if os.path.exists(img_file):
             file_name=f"AXL_Report_{name}.png",
             mime="image/png"
         )
+    
+    # CRITICAL: Close the figure to free up memory and prevent crashes
+    plt.close(fig)
+
 else:
-    # If image is missing, show a helpful message instead of crashing
     st.error(f"⚠️ Background image '{img_file}' not found.")
-    st.info("Please ensure the .jfif files are in your GitHub repository folder.")
