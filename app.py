@@ -35,10 +35,10 @@ with st.sidebar:
     v_left = cl.number_input("Left Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
     v_right = cr.number_input("Right Eye (mm)", 18.0, 32.0, 24.00, step=0.01, format="%.2f")
     
-    # 2026 Syntax: width='stretch' instead of use_container_width
     if st.button("Update Chart", type="primary", width='stretch'):
         st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
-        st.session_state.visits = sorted(st.session_state.visits, key=lambda x: x['Age'])
+        # Sort silently without a full rerun if possible
+        st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
     c1, c2 = st.columns(2)
@@ -57,7 +57,10 @@ st.title("👁️ Axial Length History Tracker")
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 
 if os.path.exists(img_file):
-    # 2026 Memory Management: Always wrap plotting in try/finally
+    # CRITICAL: Always use plt.close() at the START of the plotting block 
+    # to clear any "ghost" figures from previous failed runs.
+    plt.close('all')
+    
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     try:
         img = mpimg.imread(img_file)
@@ -70,9 +73,11 @@ if os.path.exists(img_file):
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
+            # Use scatter dots only
             ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
             ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
 
+        # Legend & Title
         legend_elements = [
             Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
             Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
@@ -83,12 +88,13 @@ if os.path.exists(img_file):
         plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
         ax.axis('off')
         
-        # New 2026 Syntax
+        # Display the plot
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # Download Buffer
+        # Download Logic
         if st.session_state.visits:
             buf = io.BytesIO()
+            # Save at 300 DPI for clinical quality
             plt.savefig(buf, format="png", dpi=300, bbox_inches='tight', pad_inches=0.1)
             buf.seek(0)
             
@@ -99,9 +105,9 @@ if os.path.exists(img_file):
                 mime="image/png"
             )
     finally:
-        # CRITICAL: Prevent health check EOF errors by clearing memory
+        # Prevent memory leaks
         plt.close(fig)
 
 else:
-    st.error(f"⚠️ Background image '{img_file}' not found.")
-    st.info("Check your GitHub repository to ensure the .jfif files are in the main folder.")
+    st.error(f"⚠️ Image not found: {img_file}")
+    st.info("Check if files are in the main GitHub folder.")
