@@ -3,17 +3,23 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os
 import io
-import pandas as pd
 from matplotlib.lines import Line2D
 
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
+# 2. CACHING: This makes switching between Male/Female and loading images instant
+@st.cache_data
+def load_bg_image(file_path):
+    if os.path.exists(file_path):
+        return mpimg.imread(file_path)
+    return None
+
 # Initialize Session State
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. Sidebar: Patient Management ---
+# --- 3. Sidebar: Patient Management ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Name", "Unnamed")
@@ -37,20 +43,19 @@ with st.sidebar:
             st.session_state.visits.pop()
             st.rerun()
 
-# --- 3. Main Display Area ---
+# --- 4. Main Display Area ---
 st.title("👁️ Axial Length History Tracker")
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
+img = load_bg_image(img_file)
 
-if os.path.exists(img_file):
-    # Create the high-quality figure
-    plt.close('all') # Memory safety
-    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100)
+if img is not None:
+    # ULTRA-FAST PREVIEW: Lower DPI (75) and smaller figure size for the web view
+    plt.close('all')
+    fig, ax = plt.subplots(figsize=(12, 6.5), dpi=75)
     
     try:
-        img = mpimg.imread(img_file)
-        # extent=[x_min, x_max, y_min, y_max] matches your background chart scale
-        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
+        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest')
         ax.set_xlim(3.8, 20.0)
         ax.set_ylim(19.5, 28.5)
         
@@ -59,34 +64,40 @@ if os.path.exists(img_file):
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            # Scatter dots only (No connecting lines)
-            ax.scatter(ages, l_vals, color='#008000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, r_vals, color='#FF0000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
+            # Simple scatter - no complex paths
+            ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', zorder=10)
+            ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', zorder=10)
 
-        # Legend & Title
+        # Legend & Title (Simplified for speed)
         legend_elements = [
-            Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
-            Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
+            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=8)
         ]
-        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), 
-                  frameon=True, facecolor='white', framealpha=0.9)
-
-        plt.title(f"Axial Length Growth Record: {name} ({gender})", fontsize=22, fontweight='bold', pad=10)
+        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0.18, 0.92), frameon=True)
+        plt.title(f"Growth Record: {name} ({gender})", fontsize=18, fontweight='bold', pad=8)
         ax.axis('off')
         
-        # Display Plot
         st.pyplot(fig, width='stretch', clear_figure=True)
 
-        # 4. Export logic (Built into the same block)
+        # --- 5. ON-DEMAND HIGH-RES DOWNLOAD ---
+        # We only generate the heavy 300 DPI image IF there is data AND the user clicks
         if st.session_state.visits:
-            buf = io.BytesIO()
-            plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
-            buf.seek(0)
-            st.download_button("💾 Download High-Res PNG Report", data=buf, file_name=f"AXL_{name}.png", mime="image/png")
+            with st.expander("💾 Generate High-Resolution Report"):
+                if st.button("Create PNG"):
+                    with st.spinner("Rendering high-res..."):
+                        fig_hr, ax_hr = plt.subplots(figsize=(15, 8.5), dpi=300)
+                        ax_hr.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='lanczos')
+                        ax_hr.scatter(ages, l_vals, color='#008000', s=120, edgecolors='white', zorder=10)
+                        ax_hr.scatter(ages, r_vals, color='#FF0000', s=120, edgecolors='white', zorder=10)
+                        ax_hr.axis('off')
+                        
+                        buf = io.BytesIO()
+                        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
+                        buf.seek(0)
+                        st.download_button("Download Now", data=buf, file_name=f"AXL_{name}.png", mime="image/png")
+                        plt.close(fig_hr)
 
     finally:
-        plt.close(fig) # Prevent 2026 memory leak
+        plt.close(fig)
 else:
-    st.error(f"⚠️ Missing {img_file}. Please check your GitHub files.")
-    # Debug: This will only show if the image is missing
-    st.write("Files in directory:", os.listdir('.'))
+    st.error(f"⚠️ Missing {img_file}")
