@@ -1,7 +1,6 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import numpy as np
 import os
 import io
 from matplotlib.lines import Line2D
@@ -25,21 +24,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CACHING & IMAGE CORRECTION: The Root Cause Fix
 @st.cache_data
-def load_and_fix_image(file_path):
+def load_bg_image(file_path):
     if os.path.exists(file_path):
-        img = mpimg.imread(file_path)
-        # We physically flip the pixels so the computer 'sees' the chart correctly
-        img = np.flipud(img) # Corrects upside-down orientation
-        img = np.fliplr(img) # Corrects mirrored/backwards text
-        return img
+        return mpimg.imread(file_path)
     return None
 
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 3. Sidebar: Clinical Input ---
+# --- 2. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Full Name", "Unnamed Patient")
@@ -61,7 +55,7 @@ with st.sidebar:
             st.session_state.visits.pop()
             st.rerun()
 
-# --- 4. Main Display Area ---
+# --- 3. Main Display Area ---
 st.title("AXIAL LENGTH CLINICAL HISTORY")
 
 today = datetime.now().strftime("%d %b %Y")
@@ -74,24 +68,26 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
-img = load_and_fix_image(img_file)
+img = load_bg_image(img_file)
 
 if img is not None:
     plt.close('all')
-    # Balancing speed (DPI 95) with clinical clarity
-    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=95) 
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     
     try:
-        # COORDINATE ALIGNMENT: [Age_Min, Age_Max, AXL_Min, AXL_Max]
-        # Based on your chart, the grid spans Age 4-18 and Axial Length 21-27
-        chart_extent = [4, 18, 21.0, 27.0] 
+        # --- THE FIX: MANUAL COORDINATE MAPPING ---
+        # We tell Matplotlib exactly where the corners should be.
+        # [Left_X, Right_X, Bottom_Y, Top_Y]
+        # By setting Age 18 on the left and 4 on the right (or vice versa), 
+        # we can un-mirror the background image.
         
-        # Plotting the 'fixed' image with a standard graph origin
-        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest', origin='lower')
+        # Based on your screenshot, the Age axis was reversed. 
+        # Swap 18 and 4 below if it still looks backwards.
+        ax.imshow(img, extent=[18, 4, 20.0, 28.0], aspect='auto', interpolation='nearest')
         
-        # LOCK AXES: Prevents the background from 'drifting'
+        # Lock the viewing area to standard orientation
         ax.set_xlim(4, 18)
-        ax.set_ylim(21.0, 27.0)
+        ax.set_ylim(20.0, 28.0)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
@@ -113,12 +109,11 @@ if img is not None:
         
         ax.axis('off')
 
-        # Buffer for Instant Report Generation
+        # Buffer for Export
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=180, bbox_inches='tight')
         buf.seek(0)
         
-        # Render to Screen
         st.pyplot(fig, width='stretch', clear_figure=True)
 
         if st.session_state.visits:
