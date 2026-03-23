@@ -1,6 +1,5 @@
 import streamlit as st
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 from PIL import Image, ImageOps
 import numpy as np
 import os
@@ -11,37 +10,30 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# --- Clinical Professional CSS ---
+# --- Clinical CSS ---
 st.markdown("""
     <style>
     h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 10px; }
-    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 15px; margin-bottom: 20px; color: #333; }
+    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 12px; margin-bottom: 15px; color: #333; }
     div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; border: none !important; }
-    div.stDownloadButton > button { 
-        background-color: #4682B4 !important; 
-        color: white !important; 
-        font-weight: 600 !important; 
-        width: 100% !important;
-    }
+    div.stDownloadButton > button { background-color: #4682B4 !important; color: white !important; font-weight: 600 !important; }
+    /* Limit the width of the chart container */
+    .element-container img { max-width: 900px; margin: auto; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. THE ROOT CAUSE FIX: Neutralizing Metadata
 @st.cache_data
 def load_fixed_bg(file_path):
     if os.path.exists(file_path):
-        # Open with PIL to access metadata
         img = Image.open(file_path)
-        # This line removes hidden "Rotate 90" or "Mirror" tags from your phone/scanner
         img = ImageOps.exif_transpose(img)
-        # Convert to a format Matplotlib understands
         return np.array(img)
     return None
 
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 3. Sidebar ---
+# --- 2. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Full Name", "Unnamed Patient")
@@ -63,7 +55,7 @@ with st.sidebar:
             st.session_state.visits.pop()
             st.rerun()
 
-# --- 4. Main Display Area ---
+# --- 3. Main Display Area ---
 st.title("AXIAL LENGTH CLINICAL HISTORY")
 
 today = datetime.now().strftime("%d %b %Y")
@@ -80,16 +72,24 @@ img_array = load_fixed_bg(img_file)
 
 if img_array is not None:
     plt.close('all')
-    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
+    
+    # --- CHART SIZE REDUCED ---
+    # Changed from (15, 8.5) to (12, 7) to make it more compact
+    fig, ax = plt.subplots(figsize=(12, 7), dpi=100) 
     
     try:
-        # Standard Grid: Age 4-18, AXL 20-28
-        # We use a standard [left, right, bottom, top] extent
-        extent = [4, 18, 20.0, 28.0]
+        # --- CALIBRATION SETTINGS ---
+        # Adjust these slightly if the points don't hit the lines
+        # Format: [Age_Start, Age_End, AXL_Bottom, AXL_Top]
+        # Try changing 3.8 to 4.0 if points are too far left.
+        x_min, x_max = 3.8, 18.2  
+        y_min, y_max = 19.8, 28.2 
         
-        # Plotting with origin='upper' (default) because ImageOps already fixed the orientation
-        ax.imshow(img_array, extent=extent, aspect='auto', interpolation='nearest', origin='upper')
+        extent = [x_min, x_max, y_min, y_max]
         
+        ax.imshow(img_array, extent=extent, aspect='auto', interpolation='lanczos', origin='upper')
+        
+        # DISPLAY LIMITS: This is what you actually see
         ax.set_xlim(4, 18)
         ax.set_ylim(20.0, 28.0)
         
@@ -98,25 +98,29 @@ if img_array is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            ax.scatter(ages, l_vals, color='#008000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, r_vals, color='#FF0000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, l_vals, color='#008000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
+            ax.scatter(ages, r_vals, color='#FF0000', s=100, edgecolors='white', linewidth=1.2, zorder=10)
 
         # Legend & Formal Title
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
-            Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
-        ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True, edgecolor='#1a2a44')
+            Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=8)
+        ], loc='upper left', bbox_to_anchor=(0.15, 0.95), frameon=True, edgecolor='#1a2a44', fontsize='small')
         
         plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", 
-                  fontsize=20, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
+                  fontsize=16, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=10)
         
         ax.axis('off')
 
+        # Buffer for Export
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=180, bbox_inches='tight')
+        plt.savefig(buf, format="png", dpi=150, bbox_inches='tight')
         buf.seek(0)
         
-        st.pyplot(fig, width='stretch', clear_figure=True)
+        # Center the chart in the UI
+        _, col_mid, _ = st.columns([1, 6, 1])
+        with col_mid:
+            st.pyplot(fig, use_container_width=True)
 
         if st.session_state.visits:
             st.download_button(
