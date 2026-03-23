@@ -10,21 +10,36 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# --- Clinical CSS ---
+# --- Clinical CSS: Compact View ---
 st.markdown("""
     <style>
     h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 10px; }
     .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 12px; margin-bottom: 15px; color: #333; }
     div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; }
+    /* Limit chart width to stop it from being "too big" */
+    .stPlotlyChart, .matplotlib-container { max-width: 750px; margin: auto; }
     </style>
     """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_fixed_bg(file_path):
+def load_and_crop_image(file_path):
     if os.path.exists(file_path):
         img = Image.open(file_path)
         img = ImageOps.exif_transpose(img)
-        return np.array(img)
+        
+        # --- THE FIX: CROP TO ACTIVE GRID ---
+        # We manually trim the white space so the '4' is at the very left edge
+        # Adjust these percentages if the crop is too aggressive
+        width, height = img.size
+        # (left, top, right, bottom)
+        # These values are calibrated to your specific screenshot layout
+        left = width * 0.095   # Trims the Y-axis labels
+        top = height * 0.08    # Trims the Top Title
+        right = width * 0.95   # Trims the right margin
+        bottom = height * 0.88 # Trims the Age labels at the bottom
+        
+        img_cropped = img.crop((left, top, right, bottom))
+        return np.array(img_cropped)
     return None
 
 if 'visits' not in st.session_state:
@@ -59,55 +74,50 @@ st.markdown(f"""<div class="patient-bar"><strong>Patient:</strong> {name.upper()
 <strong>Sex:</strong> {gender} &nbsp; | &nbsp; <strong>Report Date:</strong> {datetime.now().strftime("%d %b %Y")}</div>""", unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
-img_array = load_fixed_bg(img_file)
+img_array = load_and_crop_image(img_file)
 
 if img_array is not None:
     plt.close('all')
-    fig, ax = plt.subplots(figsize=(11, 7), dpi=100) 
+    # Compact figure size
+    fig, ax = plt.subplots(figsize=(9, 6), dpi=100) 
     
     try:
-        # --- PRECISION CALIBRATION ---
-        # Since Age 9 was landing at 7.5, we need to shift the image boundaries.
-        # We adjust the 'left' boundary (x_min) further back to compensate for the image margin.
-        x_min, x_max = 3.35, 18.65  
-        y_min, y_max = 19.65, 28.35 
+        # --- ZERO-PADDING ALIGNMENT ---
+        # Since the image is cropped to the grid, the extent is now EXACT.
+        ax.imshow(img_array, extent=[4, 18, 20.0, 28.0], aspect='auto', interpolation='lanczos', origin='upper')
         
-        extent = [x_min, x_max, y_min, y_max]
-        
-        ax.imshow(img_array, extent=extent, aspect='auto', interpolation='lanczos', origin='upper')
-        
-        # LOCK VISIBLE WINDOW: Standardize what the clinician sees
+        # Match the viewing window exactly to the extent
         ax.set_xlim(4, 18)
         ax.set_ylim(20.0, 28.0)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=120, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=90, edgecolors='white', linewidth=1.2, zorder=10)
+            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=90, edgecolors='white', linewidth=1.2, zorder=10)
 
-        # Legend & Formal Title
+        # Legend & Title
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=9),
-            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=9)
-        ], loc='upper left', bbox_to_anchor=(0.14, 0.96), frameon=True, edgecolor='#1a2a44', fontsize='small')
+            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=8)
+        ], loc='upper left', bbox_to_anchor=(0.02, 0.98), frameon=True, edgecolor='#1a2a44', fontsize='x-small')
         
         plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", 
-                  fontsize=18, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=12)
+                  fontsize=15, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=10)
         
         ax.axis('off')
 
-        # Buffer & UI Display
+        # Buffer for Export
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=160, bbox_inches='tight')
+        plt.savefig(buf, format="png", dpi=150, bbox_inches='tight')
         buf.seek(0)
         
-        # CENTER & SIZE CONTROL
-        _, col_mid, _ = st.columns([0.5, 9, 0.5])
+        # UI Display
+        _, col_mid, _ = st.columns([1, 8, 1])
         with col_mid:
-            st.pyplot(fig, use_container_width=False)
+            st.pyplot(fig, use_container_width=True)
 
         if st.session_state.visits:
-            st.download_button("📥 EXPORT CLINICAL GROWTH REPORT", buf, f"AXL_{name}.png", "image/png")
+            st.download_button("📥 EXPORT REPORT", buf, f"AXL_{name}.png", "image/png")
 
     finally:
         plt.close(fig)
