@@ -12,29 +12,10 @@ st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 # --- Clinical CSS ---
 st.markdown("""
     <style>
-    h1 {
-        font-family: 'Times New Roman', serif;
-        color: #1a2a44;
-        border-bottom: 2px solid #1a2a44;
-        padding-bottom: 10px;
-    }
-    .patient-bar {
-        background-color: #f8f9fa;
-        border-left: 5px solid #1a2a44;
-        padding: 15px;
-        margin-bottom: 20px;
-        color: #333;
-    }
-    div.stButton > button[kind="primary"] {
-        background-color: #1a2a44 !important;
-        color: white !important;
-        border: none !important;
-    }
-    div.stDownloadButton > button {
-        background-color: #4682B4 !important;
-        color: white !important;
-        font-weight: 600 !important;
-    }
+    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 10px; }
+    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 15px; margin-bottom: 20px; color: #333; }
+    div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; border: none !important; }
+    div.stDownloadButton > button { background-color: #4682B4 !important; color: white !important; font-weight: 600 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,7 +36,6 @@ with st.sidebar:
     st.divider()
     st.subheader("➕ New Entry")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
-    
     cl, cr = st.columns(2)
     v_left = cl.number_input("OS (mm)", 18.0, 32.0, 24.00, step=0.01)
     v_right = cr.number_input("OD (mm)", 18.0, 32.0, 24.00, step=0.01)
@@ -90,23 +70,24 @@ if img is not None:
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=95) 
     
     try:
-        # --- COORDINATE ALIGNMENT ---
-        # Ensure these numbers [x_min, x_max, y_min, y_max] match your image labels exactly
-        chart_extent = [4, 18, 20, 28] 
+        # --- FIX: SWAP Y_MIN and Y_MAX in EXTENT ---
+        # This maps the image correctly without "flipping" it.
+        # Format: [Left_Age, Right_Age, Top_AXL, Bottom_AXL]
+        chart_extent = [4, 18, 28, 20] 
         
-        # origin='lower' ensures the Y-axis starts at the bottom
-        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest', origin='lower')
+        # We remove origin='lower' to prevent the mirror effect
+        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest')
         
-        # LOCK AXES: This prevents the 'drifting' effect when adding points
-        ax.set_xlim(chart_extent[0], chart_extent[1])
-        ax.set_ylim(chart_extent[2], chart_extent[3])
+        # Lock axes to match the growth chart grid
+        ax.set_xlim(4, 18)
+        ax.set_ylim(20, 28)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            # Points are now tied strictly to the chart's coordinate system
+            # Points will now align with the image grid perfectly
             ax.scatter(ages, l_vals, color='#008000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
             ax.scatter(ages, r_vals, color='#FF0000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
 
@@ -119,7 +100,6 @@ if img is not None:
         plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", 
                   fontsize=20, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
         
-        # Turn off axis labels so only the image labels are visible
         ax.axis('off')
 
         # Buffer for Report Generation
@@ -127,7 +107,6 @@ if img is not None:
         plt.savefig(buf, format="png", dpi=180, bbox_inches='tight')
         buf.seek(0)
         
-        # Display to UI
         st.pyplot(fig, width='stretch', clear_figure=True)
 
         if st.session_state.visits:
