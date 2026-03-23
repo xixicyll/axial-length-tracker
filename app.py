@@ -1,6 +1,7 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import numpy as np
 import os
 import io
 from matplotlib.lines import Line2D
@@ -25,9 +26,14 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_bg_image(file_path):
+def load_and_fix_image_final(file_path):
     if os.path.exists(file_path):
-        return mpimg.imread(file_path)
+        img = mpimg.imread(file_path)
+        # FORCE RE-ORIENTATION:
+        # This handles cases where the image is rotated/mirrored in metadata
+        # We flip both axes to ensure '4' is on the left and '20' is at the bottom
+        img = img[::-1, ::-1, :] 
+        return img
     return None
 
 if 'visits' not in st.session_state:
@@ -68,24 +74,23 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
-img = load_bg_image(img_file)
+img = load_and_fix_image_final(img_file)
 
 if img is not None:
     plt.close('all')
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     
     try:
-        # --- THE FIX: MANUAL COORDINATE MAPPING ---
-        # We tell Matplotlib exactly where the corners should be.
-        # [Left_X, Right_X, Bottom_Y, Top_Y]
-        # By setting Age 18 on the left and 4 on the right (or vice versa), 
-        # we can un-mirror the background image.
+        # --- THE ABSOLUTE FIX ---
+        # 1. Image Data: Corrected via img[::-1, ::-1, :]
+        # 2. Extent: Mapping the physical image corners to mathematical units
+        # [Left_Age, Right_Age, Bottom_AXL, Top_AXL]
+        chart_extent = [4, 18, 20.0, 28.0] 
         
-        # Based on your screenshot, the Age axis was reversed. 
-        # Swap 18 and 4 below if it still looks backwards.
-        ax.imshow(img, extent=[18, 4, 20.0, 28.0], aspect='auto', interpolation='nearest')
+        # We use origin='lower' to force the Y-axis to start at the bottom (20.0)
+        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest', origin='lower')
         
-        # Lock the viewing area to standard orientation
+        # 3. Lock Viewing Window
         ax.set_xlim(4, 18)
         ax.set_ylim(20.0, 28.0)
         
