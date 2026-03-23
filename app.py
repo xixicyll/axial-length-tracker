@@ -10,16 +10,16 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# --- Clinical CSS: Compact & Centered ---
+# --- Clinical CSS: Strict Screen Fit ---
 st.markdown("""
     <style>
-    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 10px; }
-    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 12px; margin-bottom: 15px; color: #333; }
-    div.stButton > button[kind="primary"] { background-color: #1a2a44 !important; color: white !important; }
+    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 5px; font-size: 24px; }
+    .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 8px; margin-bottom: 10px; font-size: 14px; }
     
-    /* Strict control over the chart display size */
+    /* Forces the chart to fit on one screen without scrolling */
     .matplotlib-container {
-        max-width: 850px;
+        max-width: 700px;
+        max-height: 500px;
         margin: auto;
     }
     </style>
@@ -62,7 +62,7 @@ with st.sidebar:
 st.title("AXIAL LENGTH CLINICAL HISTORY")
 
 st.markdown(f"""<div class="patient-bar"><strong>Patient:</strong> {name.upper()} &nbsp; | &nbsp; 
-<strong>Sex:</strong> {gender} &nbsp; | &nbsp; <strong>Report Date:</strong> {datetime.now().strftime("%d %b %Y")}</div>""", unsafe_allow_html=True)
+<strong>Sex:</strong> {gender} &nbsp; | &nbsp; <strong>Date:</strong> {datetime.now().strftime("%d %b %Y")}</div>""", unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 img_array = load_fixed_bg(img_file)
@@ -70,54 +70,52 @@ img_array = load_fixed_bg(img_file)
 if img_array is not None:
     plt.close('all')
     
-    # FIGSIZE: Balanced for clinical readability without being overwhelming
-    fig, ax = plt.subplots(figsize=(11, 7), dpi=100) 
+    # SMALLER SIZE: (7.5, 5.0) ensures the full chart fits even on smaller laptop screens
+    fig, ax = plt.subplots(figsize=(7.5, 5.0), dpi=100) 
     
     try:
-        # --- THE ALIGNMENT CALIBRATION ---
-        # Adjusting x_min to 2.5 and x_max to 19.5 ensures Age 9 lands 
-        # exactly on the 9th vertical line by compensating for image margins.
-        x_min, x_max = 2.5, 19.5  
-        y_min, y_max = 19.5, 28.5 
+        # --- CALIBRATION ---
+        # We expand the boundaries further to account for wide margins in the file
+        # Age 9 alignment fix:
+        x_min, x_max = 1.8, 19.8  
+        y_min, y_max = 19.2, 28.8 
         
         extent = [x_min, x_max, y_min, y_max]
-        
-        # We use 'upper' to keep the labels readable
         ax.imshow(img_array, extent=extent, aspect='auto', interpolation='lanczos', origin='upper')
         
-        # DISPLAY LIMITS: We 'crop' the view visually but keep the full image data
-        ax.set_xlim(3.5, 18.5) # Shows a bit of the 4 and 18 labels
-        ax.set_ylim(19.5, 28.5) # Shows the full 20 to 28 range
+        # VISIBILITY FIX: Show more area (1.5 to 20) so labels aren't cut off
+        ax.set_xlim(2.0, 19.5)
+        ax.set_ylim(19.2, 28.8)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=110, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=60, edgecolors='white', linewidth=1, zorder=10)
+            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=60, edgecolors='white', linewidth=1, zorder=10)
 
-        # Legend & Title
+        # Legend (Condensed for smaller chart)
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='Left OS', markerfacecolor='#008000', markersize=9),
-            Line2D([0], [0], marker='o', color='w', label='Right OD', markerfacecolor='#FF0000', markersize=9)
-        ], loc='upper left', bbox_to_anchor=(0.14, 0.96), frameon=True, edgecolor='#1a2a44', fontsize='small')
+            Line2D([0], [0], marker='o', color='w', label='OS', markerfacecolor='#008000', markersize=6),
+            Line2D([0], [0], marker='o', color='w', label='OD', markerfacecolor='#FF0000', markersize=6)
+        ], loc='upper left', bbox_to_anchor=(0.1, 0.98), frameon=True, fontsize='xx-small')
         
-        plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", 
-                  fontsize=18, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
+        plt.title(f"AXL GROWTH: {name.upper()}", fontsize=12, fontweight='bold', pad=8)
         
         ax.axis('off')
 
-        # Buffer & Layout Rendering
+        # Rendering
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=160, bbox_inches='tight')
+        plt.savefig(buf, format="png", dpi=140, bbox_inches='tight', pad_inches=0.1)
         buf.seek(0)
         
-        _, col_mid, _ = st.columns([0.5, 9, 0.5])
+        # Force chart to center and respect small width
+        _, col_mid, _ = st.columns([1, 4, 1])
         with col_mid:
-            st.pyplot(fig, use_container_width=True)
+            st.image(buf, use_container_width=True)
 
         if st.session_state.visits:
-            st.download_button("📥 EXPORT CLINICAL GROWTH REPORT", buf, f"AXL_{name}.png", "image/png")
+            st.download_button("📥 EXPORT", buf, f"AXL_{name}.png", "image/png")
 
     finally:
         plt.close(fig)
 else:
-    st.error(f"⚠️ Reference Image Missing: {img_file}")
+    st.error(f"⚠️ Image Missing: {img_file}")
