@@ -9,7 +9,7 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# --- RESTORED CLINICAL CSS ---
+# --- Clinical CSS ---
 st.markdown("""
     <style>
     h1 {
@@ -53,8 +53,9 @@ with st.sidebar:
     name = st.text_input("Full Name", "Unnamed Patient")
     gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
-    st.subheader("➕ New Measurement")
+    st.subheader("➕ New Entry")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
+    
     cl, cr = st.columns(2)
     v_left = cl.number_input("OS (mm)", 18.0, 32.0, 24.00, step=0.01)
     v_right = cr.number_input("OD (mm)", 18.0, 32.0, 24.00, step=0.01)
@@ -70,9 +71,8 @@ with st.sidebar:
             st.rerun()
 
 # --- 3. Main Display Area ---
-st.title("👁️ Axial Length History Tracker")
+st.title("AXIAL LENGTH CLINICAL HISTORY")
 
-# Restored Patient Info Bar
 today = datetime.now().strftime("%d %b %Y")
 st.markdown(f"""
     <div class="patient-bar">
@@ -87,41 +87,52 @@ img = load_bg_image(img_file)
 
 if img is not None:
     plt.close('all')
-    # Optimized figsize and DPI for speed-performance balance
-    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=90) 
+    fig, ax = plt.subplots(figsize=(15, 8.5), dpi=95) 
     
     try:
-        # 'nearest' interpolation for speed during real-time updates
-        ax.imshow(img, extent=[4, 18, 20, 28], aspect='auto', interpolation='nearest')
-        ax.set_xlim(3.8, 20.0)
-        ax.set_ylim(19.5, 28.5)
+        # --- COORDINATE ALIGNMENT ---
+        # Ensure these numbers [x_min, x_max, y_min, y_max] match your image labels exactly
+        chart_extent = [4, 18, 20, 28] 
+        
+        # origin='lower' ensures the Y-axis starts at the bottom
+        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest', origin='lower')
+        
+        # LOCK AXES: This prevents the 'drifting' effect when adding points
+        ax.set_xlim(chart_extent[0], chart_extent[1])
+        ax.set_ylim(chart_extent[2], chart_extent[3])
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=130, edgecolors='white', linewidth=1.5, zorder=10)
+            l_vals = [v['Left'] for v in st.session_state.visits]
+            r_vals = [v['Right'] for v in st.session_state.visits]
+            
+            # Points are now tied strictly to the chart's coordinate system
+            ax.scatter(ages, l_vals, color='#008000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
+            ax.scatter(ages, r_vals, color='#FF0000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
 
-        # Restored Formal Legend
+        # Formal Legend & Title
         ax.legend(handles=[
             Line2D([0], [0], marker='o', color='w', label='Left Eye (OS)', markerfacecolor='#008000', markersize=10),
             Line2D([0], [0], marker='o', color='w', label='Right Eye (OD)', markerfacecolor='#FF0000', markersize=10)
         ], loc='upper left', bbox_to_anchor=(0.18, 0.94), frameon=True, edgecolor='#1a2a44')
         
-        # Restored Formal Chart Title
         plt.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}", 
                   fontsize=20, fontfamily='serif', fontweight='bold', color='#1a2a44', pad=15)
+        
+        # Turn off axis labels so only the image labels are visible
         ax.axis('off')
 
-        # Buffer generation for the report
+        # Buffer for Report Generation
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=180, bbox_inches='tight')
         buf.seek(0)
         
+        # Display to UI
         st.pyplot(fig, width='stretch', clear_figure=True)
 
         if st.session_state.visits:
             st.download_button(
-                label="📥 EXPORT REPORT",
+                label="📥 EXPORT CLINICAL GROWTH REPORT",
                 data=buf,
                 file_name=f"AXL_Report_{name.replace(' ', '_')}.png",
                 mime="image/png",
