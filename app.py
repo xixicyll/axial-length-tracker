@@ -1,10 +1,10 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 from PIL import Image
 import os
-from datetime import datetime
 
-# 1. Setup
+# 1. Dashboard Configuration
 st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 
 if 'visits' not in st.session_state:
@@ -13,19 +13,23 @@ if 'visits' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
-    name = st.text_input("Name", "Unnamed Patient")
-    gender = st.selectbox("Sex", ["Female", "Male"])
+    name = st.text_input("Full Name", "Unnamed Patient")
+    gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
-    st.subheader("➕ Add Measurement")
-    v_age = st.number_input("Age", 4.0, 18.0, 9.0, 0.1)
-    v_left = st.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
-    v_right = st.number_input("OD (mm)", 18.0, 32.0, 24.00, 0.01)
+    st.subheader("➕ New Entry")
+    v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
+    cl, cr = st.columns(2)
+    v_left = cl.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
+    v_right = cr.number_input("OD (mm)", 18.0, 32.0, 24.00, 0.01)
     
-    if st.button("Update Chart", type="primary"):
-        st.session_state.visits.append({"Age": v_age, "Left": v_left, "Right": v_right})
+    if st.button("Update Clinical Record", type="primary", width="stretch"):
+        st.session_state.visits.append({
+            "Age": v_age, "OS (Left)": v_left, "OD (Right)": v_right
+        })
+        st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
-# --- Main Logic ---
+# --- Main Layout ---
 st.title("AXIAL LENGTH GROWTH HISTORY")
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
@@ -33,53 +37,63 @@ img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
 if os.path.exists(img_file):
     img = Image.open(img_file)
     
-    # Create the Plotly Figure
     fig = go.Figure()
 
-    # --- THE "BETTER WAY" ALIGNMENT ---
-    # These numbers lock the image to the grid coordinates. 
-    # Adjusting x0 from 4 to 3.4 pulls the "9" line under the 9.0 data point.
+    # --- NO-DISTORTION ALIGNMENT ---
+    # We map the image to a slightly wider range to show the labels properly
     fig.add_layout_image(
         dict(
             source=img,
             xref="x", yref="y",
-            x=3.4, y=28.5, # Top-left anchor
-            sizex=16.2, sizey=9.0, # Total span of the image
-            sizing="stretch",
-            opacity=1.0,
+            x=3.15, y=28.8, # Precise anchor based on your 9:52 PM screenshot
+            sizex=16.8, sizey=9.8,
+            sizing="contain", # PREVENTS DISTORTION
+            opacity=0.8,
             layer="below"
         )
     )
 
-    # Add Data Points
+    # Add Data Points with high-contrast clinical colors
     if st.session_state.visits:
-        ages = [v['Age'] for v in st.session_state.visits]
+        df = pd.DataFrame(st.session_state.visits)
         fig.add_trace(go.Scatter(
-            x=ages, y=[v['Left'] for v in st.session_state.visits],
-            name="Left (OS)", mode='markers',
-            marker=dict(color='green', size=12, line=dict(color='white', width=2))
+            x=df['Age'], y=df['OS (Left)'],
+            name="Left Eye (OS)", mode='markers+lines',
+            marker=dict(color='#008000', size=14, symbol='circle', line=dict(color='white', width=2)),
+            line=dict(color='#008000', width=1, dash='dot')
         ))
         fig.add_trace(go.Scatter(
-            x=ages, y=[v['Right'] for v in st.session_state.visits],
-            name="Right (OD)", mode='markers',
-            marker=dict(color='red', size=12, line=dict(color='white', width=2))
+            x=df['Age'], y=df['OD (Right)'],
+            name="Right Eye (OD)", mode='markers+lines',
+            marker=dict(color='#FF0000', size=14, symbol='x', line=dict(color='white', width=2)),
+            line=dict(color='#FF0000', width=1, dash='dot')
         ))
 
-    # Clean up the layout
+    # Professional Axis Setup
     fig.update_layout(
         template="plotly_white",
-        xaxis=dict(range=[4, 18], title="Age (years)", showgrid=False),
-        yaxis=dict(range=[20, 28], title="Axial Length (mm)", showgrid=False),
-        margin=dict(l=20, r=20, t=50, b=20),
+        xaxis=dict(
+            title="Age (years)", range=[3.8, 18.2], 
+            dtick=1, showgrid=True, gridcolor='rgba(0,0,0,0.1)'
+        ),
+        yaxis=dict(
+            title="Axial Length (mm)", range=[19.8, 28.2], 
+            dtick=1, showgrid=True, gridcolor='rgba(0,0,0,0.1)'
+        ),
         height=600,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+        margin=dict(l=40, r=40, t=40, b=40),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.error(f"Please ensure {img_file} is in the folder.")
 
-if st.button("Clear Last Entry"):
+    # --- Patient Data Table ---
     if st.session_state.visits:
-        st.session_state.visits.pop()
-        st.rerun()
+        st.subheader("📊 Measurement Log")
+        st.table(pd.DataFrame(st.session_state.visits))
+        
+        if st.button("Clear Last Entry"):
+            st.session_state.visits.pop()
+            st.rerun()
+else:
+    st.error(f"Image not found: {img_file}. Please check the filename.")
