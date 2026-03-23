@@ -10,12 +10,11 @@ from datetime import datetime
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Tracker Pro", layout="wide")
 
-# --- Clinical CSS: Screen Fit ---
+# --- Clinical CSS ---
 st.markdown("""
     <style>
-    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 5px solid #1a2a44; padding-bottom: 5px; font-size: 24px; }
+    h1 { font-family: 'Times New Roman', serif; color: #1a2a44; border-bottom: 2px solid #1a2a44; padding-bottom: 5px; font-size: 24px; }
     .patient-bar { background-color: #f8f9fa; border-left: 5px solid #1a2a44; padding: 8px; margin-bottom: 10px; font-size: 14px; }
-    .stImage > img { border: 1px solid #ddd; border-radius: 4px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,10 +48,13 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.subheader("🎯 Fine-Tune Alignment")
-    # These sliders let you "nudge" the background chart left/right or up/down
-    nudge_x = st.slider("Left/Right Nudge", 2.0, 5.0, 3.2, 0.05)
-    nudge_y = st.slider("Up/Down Nudge", 18.5, 20.5, 19.4, 0.05)
+    st.subheader("🎯 Alignment Calibration")
+    # Nudge moves the whole image
+    nudge_x = st.slider("Left Margin Nudge", 1.0, 5.0, 2.5, 0.01)
+    # Width stretches/shrinks the age lines
+    width_x = st.slider("Age Grid Stretch", 15.0, 20.0, 17.5, 0.01)
+    # Length calibration
+    nudge_y = st.slider("Top Margin Nudge", 18.5, 20.5, 19.4, 0.01)
     
     if st.button("Undo Last Entry", width='stretch'):
         if st.session_state.visits: 
@@ -70,49 +72,44 @@ img_array = load_fixed_bg(img_file)
 
 if img_array is not None:
     plt.close('all')
-    
-    # FIGSIZE: (8, 5) fits the "Full Chart" comfortably on screen
-    fig, ax = plt.subplots(figsize=(8, 5), dpi=110) 
+    fig, ax = plt.subplots(figsize=(8.5, 5.5), dpi=110) 
     
     try:
-        # --- DYNAMIC CALIBRATION ---
-        # We use the sliders to define the image boundaries
-        x_min, x_max = nudge_x, nudge_x + 17.0
-        y_min, y_max = nudge_y, nudge_y + 9.2
+        # --- CALIBRATION FORMULA ---
+        # x_min/max defines where the image starts and ends in Age years
+        x_min = nudge_x
+        x_max = nudge_x + width_x
         
-        extent = [x_min, x_max, y_min, y_max]
-        ax.imshow(img_array, extent=extent, aspect='auto', interpolation='lanczos', origin='upper')
+        # y_min/max defines the Axial Length mapping
+        y_min = nudge_y
+        y_max = nudge_y + 9.5 # Standard vertical span for 20-28mm + margins
         
-        # DISPLAY LIMITS: Set wide enough to show all labels (Age 4-18 and AXL 20-28)
-        ax.set_xlim(3.0, 19.0)
-        ax.set_ylim(19.2, 28.8)
+        ax.imshow(img_array, extent=[x_min, x_max, y_min, y_max], aspect='auto', interpolation='lanczos', origin='upper')
+        
+        # Lock view to standard chart range
+        ax.set_xlim(3.5, 18.5)
+        ax.set_ylim(19.5, 28.5)
         
         if st.session_state.visits:
             ages = [v['Age'] for v in st.session_state.visits]
-            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=70, edgecolors='white', linewidth=1, zorder=10)
-            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=70, edgecolors='white', linewidth=1, zorder=10)
+            ax.scatter(ages, [v['Left'] for v in st.session_state.visits], color='#008000', s=80, edgecolors='white', linewidth=1.2, zorder=10)
+            ax.scatter(ages, [v['Right'] for v in st.session_state.visits], color='#FF0000', s=80, edgecolors='white', linewidth=1.2, zorder=10)
 
-        # Legend & Title
         ax.legend(handles=[
-            Line2D([0], [0], marker='o', color='w', label='OS', markerfacecolor='#008000', markersize=6),
-            Line2D([0], [0], marker='o', color='w', label='OD', markerfacecolor='#FF0000', markersize=6)
+            Line2D([0], [0], marker='o', color='w', label='OS', markerfacecolor='#008000', markersize=7),
+            Line2D([0], [0], marker='o', color='w', label='OD', markerfacecolor='#FF0000', markersize=7)
         ], loc='upper left', bbox_to_anchor=(0.1, 0.98), frameon=True, fontsize='xx-small')
         
-        plt.title(f"AXL GROWTH: {name.upper()}", fontsize=12, fontweight='bold', pad=8)
+        plt.title(f"AXL GROWTH: {name.upper()}", fontsize=14, fontweight='bold')
         ax.axis('off')
 
-        # Rendering to a buffer for Streamlit
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=140, bbox_inches='tight', pad_inches=0.1)
         buf.seek(0)
         
-        # DISPLAY: Center the image and force it to be clear
-        _, col_mid, _ = st.columns([1, 6, 1])
+        _, col_mid, _ = st.columns([1, 8, 1])
         with col_mid:
             st.image(buf, use_container_width=True)
-
-        if st.session_state.visits:
-            st.download_button("📥 EXPORT REPORT", buf, f"AXL_{name}.png", "image/png")
 
     finally:
         plt.close(fig)
