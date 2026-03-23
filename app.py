@@ -1,6 +1,7 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from PIL import Image, ImageOps
 import numpy as np
 import os
 import io
@@ -25,21 +26,22 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# 2. THE ROOT CAUSE FIX: Neutralizing Metadata
 @st.cache_data
-def load_and_fix_image_final(file_path):
+def load_fixed_bg(file_path):
     if os.path.exists(file_path):
-        img = mpimg.imread(file_path)
-        # FORCE RE-ORIENTATION:
-        # This handles cases where the image is rotated/mirrored in metadata
-        # We flip both axes to ensure '4' is on the left and '20' is at the bottom
-        img = img[::-1, ::-1, :] 
-        return img
+        # Open with PIL to access metadata
+        img = Image.open(file_path)
+        # This line removes hidden "Rotate 90" or "Mirror" tags from your phone/scanner
+        img = ImageOps.exif_transpose(img)
+        # Convert to a format Matplotlib understands
+        return np.array(img)
     return None
 
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. Sidebar ---
+# --- 3. Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
     name = st.text_input("Full Name", "Unnamed Patient")
@@ -61,7 +63,7 @@ with st.sidebar:
             st.session_state.visits.pop()
             st.rerun()
 
-# --- 3. Main Display Area ---
+# --- 4. Main Display Area ---
 st.title("AXIAL LENGTH CLINICAL HISTORY")
 
 today = datetime.now().strftime("%d %b %Y")
@@ -74,23 +76,20 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
-img = load_and_fix_image_final(img_file)
+img_array = load_fixed_bg(img_file)
 
-if img is not None:
+if img_array is not None:
     plt.close('all')
     fig, ax = plt.subplots(figsize=(15, 8.5), dpi=100) 
     
     try:
-        # --- THE ABSOLUTE FIX ---
-        # 1. Image Data: Corrected via img[::-1, ::-1, :]
-        # 2. Extent: Mapping the physical image corners to mathematical units
-        # [Left_Age, Right_Age, Bottom_AXL, Top_AXL]
-        chart_extent = [4, 18, 20.0, 28.0] 
+        # Standard Grid: Age 4-18, AXL 20-28
+        # We use a standard [left, right, bottom, top] extent
+        extent = [4, 18, 20.0, 28.0]
         
-        # We use origin='lower' to force the Y-axis to start at the bottom (20.0)
-        ax.imshow(img, extent=chart_extent, aspect='auto', interpolation='nearest', origin='lower')
+        # Plotting with origin='upper' (default) because ImageOps already fixed the orientation
+        ax.imshow(img_array, extent=extent, aspect='auto', interpolation='nearest', origin='upper')
         
-        # 3. Lock Viewing Window
         ax.set_xlim(4, 18)
         ax.set_ylim(20.0, 28.0)
         
@@ -99,7 +98,6 @@ if img is not None:
             l_vals = [v['Left'] for v in st.session_state.visits]
             r_vals = [v['Right'] for v in st.session_state.visits]
             
-            # Clinical Data Points
             ax.scatter(ages, l_vals, color='#008000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
             ax.scatter(ages, r_vals, color='#FF0000', s=140, edgecolors='white', linewidth=1.5, zorder=10)
 
@@ -114,7 +112,6 @@ if img is not None:
         
         ax.axis('off')
 
-        # Buffer for Export
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=180, bbox_inches='tight')
         buf.seek(0)
