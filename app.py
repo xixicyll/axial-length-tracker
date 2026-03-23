@@ -1,10 +1,20 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from PIL import Image
-import os
+import numpy as np
 
-st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
+st.set_page_config(page_title="AXL Clinical Dashboard", layout="wide")
+
+# --- Clinical Percentile Data (Simplified Example) ---
+# In a real tool, these would be the exact values from the research papers
+def get_percentile_data(age_range):
+    # This represents the 50th percentile (average) growth curve
+    return 21.5 + 0.8 * np.log(age_range - 2.5)
+
+age_axis = np.linspace(4, 18, 100)
+p50_curve = get_percentile_data(age_axis)
+p95_curve = p50_curve + 1.2  # High risk
+p5_curve = p50_curve - 1.0   # Low risk
 
 if 'visits' not in st.session_state:
     st.session_state.visits = []
@@ -12,80 +22,48 @@ if 'visits' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.header("👤 Patient Profile")
-    name = st.text_input("Full Name", "Unnamed Patient")
-    gender = st.selectbox("Biological Sex", ["Female", "Male"])
+    name = st.text_input("Name", "Unnamed Patient")
     st.divider()
-    v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
-    v_left = st.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
-    v_right = st.number_input("OD (mm)", 18.0, 32.0, 24.00, 0.01)
+    v_age = st.number_input("Age", 4.0, 18.0, 9.0, 0.1)
+    v_os = st.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
+    v_od = st.number_input("OD (mm)", 18.0, 32.0, 24.00, 0.01)
     
-    if st.button("Update Record", type="primary", width="stretch"):
-        st.session_state.visits.append({"Age": v_age, "OS": v_left, "OD": v_right})
-        st.session_state.visits.sort(key=lambda x: x['Age'])
+    if st.button("Add to Record", type="primary", width="stretch"):
+        st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
         st.rerun()
 
-st.title("AXIAL LENGTH CLINICAL HISTORY")
+st.title("AXIAL LENGTH GROWTH ANALYSIS")
 
-img_file = "AXL female.jfif" if gender == "Female" else "AXL male.jfif"
+# --- The Digital Chart ---
+fig = go.Figure()
 
-if os.path.exists(img_file):
-    img = Image.open(img_file)
-    fig = go.Figure()
+# 1. Add Reference Percentiles (The "Background" but digital)
+fig.add_trace(go.Scatter(x=age_axis, y=p95_curve, name="95th (High Risk)", 
+                         line=dict(color='rgba(255,0,0,0.2)', width=1, dash='dash')))
+fig.add_trace(go.Scatter(x=age_axis, y=p50_curve, name="50th (Average)", 
+                         line=dict(color='rgba(0,0,0,0.3)', width=2)))
+fig.add_trace(go.Scatter(x=age_axis, y=p5_curve, name="5th (Low Risk)", 
+                         line=dict(color='rgba(0,0,255,0.2)', width=1, dash='dash')))
 
-    # --- THE ALIGNMENT FIX ---
-    # We map the image edges precisely to the Age 4 and Age 18 lines.
-    fig.add_layout_image(
-        dict(
-            source=img,
-            xref="x", yref="y",
-            x=3.6, y=28.5,        # Adjusted anchor to pull image left
-            sizex=15.2, sizey=9.2, # Adjusted span to match Age 4-18
-            sizing="stretch",
-            opacity=1.0,
-            layer="below"
-        )
-    )
+# 2. Add Patient Data
+if st.session_state.visits:
+    df = pd.DataFrame(st.session_state.visits)
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS (Left)", 
+                             mode='markers+lines', marker=dict(color='green', size=12)))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD (Right)", 
+                             mode='markers+lines', marker=dict(color='red', size=12)))
 
-    if st.session_state.visits:
-        df = pd.DataFrame(st.session_state.visits)
-        fig.add_trace(go.Scatter(
-            x=df['Age'], y=df['OS'], name="OS (Left)", 
-            mode='markers+lines', marker=dict(color='green', size=12, line=dict(width=2, color='white'))
-        ))
-        fig.add_trace(go.Scatter(
-            x=df['Age'], y=df['OD'], name="OD (Right)", 
-            mode='markers+lines', marker=dict(color='red', size=12, line=dict(width=2, color='white'))
-        ))
+fig.update_layout(
+    template="plotly_white",
+    xaxis=dict(title="Age (years)", range=[4, 18], dtick=1, showgrid=True),
+    yaxis=dict(title="Axial Length (mm)", range=[20, 28], dtick=1, showgrid=True),
+    height=600,
+    hovermode="x unified"
+)
 
-    # --- THE VIEWPORT LOCK ---
-    fig.update_layout(
-        template="plotly_white",
-        xaxis=dict(
-            title="Age (years)", 
-            range=[4, 18],        # This removes the -7 to 29 empty space
-            dtick=1, 
-            showgrid=True, 
-            gridcolor='lightgrey',
-            fixedrange=True       # Prevents accidental zooming
-        ),
-        yaxis=dict(
-            title="Axial Length (mm)", 
-            range=[20, 28], 
-            dtick=1, 
-            showgrid=True, 
-            gridcolor='lightgrey',
-            fixedrange=True
-        ),
-        height=600,
-        margin=dict(l=50, r=50, t=50, b=50),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.error(f"Image not found: {img_file}")
-
-if st.button("Undo Last Entry"):
+if st.button("Undo Last"):
     if st.session_state.visits:
         st.session_state.visits.pop()
         st.rerun()
