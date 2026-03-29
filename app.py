@@ -8,7 +8,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. CLINICAL DATA TABLES (Source: Your uploaded data) ---
+# --- 2. CLINICAL DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -40,8 +40,8 @@ with st.sidebar:
     gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
-    v_os = st.number_input("OS (Left) mm", 18.0, 32.0, 24.00, 0.01)
-    v_od = st.number_input("OD (Right) mm", 18.0, 32.0, 24.00, 0.01)
+    v_os = st.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
+    v_od = st.number_input("OD (mm)", 18.0, 32.0, 24.00, 0.01)
     
     if st.button("Update Record", type="primary", use_container_width=True):
         st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
@@ -49,12 +49,12 @@ with st.sidebar:
         st.rerun()
 
 # --- 4. PLOT CONSTRUCTION ---
-st.title(f"AXL GROWTH: {name.upper()}")
+st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Marker styles from images
+# Marker Map for Clinical Reference
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
@@ -66,88 +66,75 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
+# Percentile Lines
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
-    is_median = (p == "50")
-    
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=p,
+        name=f"p{p}",
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=7, color="black"),
-        line=dict(
-            color="black" if is_median else "rgba(80, 80, 80, 0.8)",
-            width=2 if is_median else 1,
-            dash=style["dash"]
-        ),
-        legendgroup="Percentiles"
+        line=dict(color="black" if p=="50" else "grey", width=2 if p=="50" else 1, dash=style["dash"]),
+        showlegend=True
     ))
 
-# Patient Measurements
+# Patient Lines
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OS'], name="OS", 
-        mode='markers+lines', marker=dict(color='green', size=11, symbol='circle'),
-        showlegend=False # Managed by the top-left annotation box
-    ))
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OD'], name="OD", 
-        mode='markers+lines', marker=dict(color='red', size=11, symbol='circle'),
-        showlegend=False
-    ))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS", mode='markers+lines', 
+                             marker=dict(color='green', size=11), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD", mode='markers+lines', 
+                             marker=dict(color='red', size=11), showlegend=False))
 
-# --- 5. GRID, BORDER & HORIZONTAL LEGEND ---
+# --- 5. THE CRITICAL LAYOUT FIXES ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", 
-        range=[4, 18.2], dtick=1, 
-        showgrid=True, gridcolor='rgba(180, 180, 180, 0.5)',
+        range=[4, 18], dtick=1, 
+        showgrid=True, gridcolor='darkgrey', # High-contrast grid
         showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
     ),
     yaxis=dict(
-        title=f"<b>Axial length (mm)- {gender}s</b>", 
+        title=f"<b>Axial length (mm) - {gender}s</b>", 
         range=[20, 28], dtick=1, 
-        showgrid=True, gridcolor='rgba(180, 180, 180, 0.5)',
+        showgrid=True, gridcolor='darkgrey', # High-contrast grid
         showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
     ),
     height=800,
-    # Horizontal Legend exactly like the reference image
+    # FORCED HORIZONTAL LEGEND AT BOTTOM
     legend=dict(
         orientation="h",
-        yanchor="top", y=-0.08,
+        yanchor="top", y=-0.1,
         xanchor="center", x=0.5,
-        bgcolor="rgba(255,255,255,0)",
-        font=dict(size=13)
+        bordercolor="black", borderwidth=1,
+        itemsizing='constant'
     ),
-    # The OS/OD Floating Box from screenshot
+    # Floating legend for OS/OD to mimic screenshot
     annotations=[
         dict(
             xref="paper", yref="paper", x=0.02, y=0.98,
             text="<span style='color:green'>●</span> OS<br><span style='color:red'>●</span> OD",
-            font=dict(size=16, family="Arial Black"),
-            showarrow=False, align="left",
-            bgcolor="white", bordercolor="black", borderwidth=1
+            font=dict(size=14, family="Arial Black"),
+            showarrow=False, align="left", bgcolor="white", bordercolor="black", borderwidth=1
         )
     ],
-    margin=dict(l=80, r=40, t=40, b=100)
+    margin=dict(l=80, r=40, t=40, b=120)
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. EXPORT & UTILS ---
+# --- 6. UTILITIES ---
 st.divider()
 col1, col2 = st.columns([1, 4])
 with col1:
     try:
         pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
-        st.download_button(label="📥 EXPORT PDF", data=pdf_bytes, 
-                           file_name=f"AXL_{name}.pdf", mime="application/pdf")
+        st.download_button(label="📥 EXPORT PDF", data=pdf_bytes, file_name=f"AXL_{name}.pdf", mime="application/pdf")
     except:
-        st.info("Export system ready. Add 'kaleido' to requirements.txt.")
+        st.info("Check requirements.txt for 'kaleido'.")
 with col2:
-    if st.button("Undo Last Entry"):
+    if st.button("Clear Last Entry"):
         if st.session_state.visits:
             st.session_state.visits.pop()
             st.rerun()
