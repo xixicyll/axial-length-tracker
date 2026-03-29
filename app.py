@@ -8,7 +8,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. CLINICAL DATA TABLES ---
+# --- 2. DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -65,65 +65,60 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
-# Percentile Lines (Two-Step Trace for Thinner Legend Lines)
+# Percentile Lines: Using legendwidth for thinner legend lines
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
-    # 1. ACTUAL PLOT (Thick line, no legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        mode='lines+markers' if style["symbol"] else 'lines',
-        marker=dict(symbol=style["symbol"], size=8, color="black"),
-        line=dict(color="black" if is_median else "#444444", width=1.5, dash=style["dash"]),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # 2. LEGEND DUMMY (Thin line, shows in legend)
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], # Invisible data
         name=p,
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
-        line=dict(color="black", width=0.5, dash=style["dash"]), # THIN LINE FOR LEGEND
+        line=dict(
+            color="black" if is_median else "#444444", 
+            width=1.5, 
+            dash=style["dash"]
+        ),
+        # THIS IS THE KEY: Decouples legend line thickness from the chart
+        legendwidth=0.5, 
         showlegend=True
     ))
 
 # Patient Measurements (OS/OD)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS", mode='markers+lines', 
-                             marker=dict(color='green', size=11, symbol='circle'), showlegend=False))
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD", mode='markers+lines', 
-                             marker=dict(color='red', size=11, symbol='circle'), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], mode='markers+lines', 
+                             marker=dict(color='green', size=11), line=dict(width=2.5), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], mode='markers+lines', 
+                             marker=dict(color='red', size=11), line=dict(width=2.5), showlegend=False))
 
 # --- 5. BOXED GRID & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", range=[4, 18], dtick=1, 
-        showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True
+        showgrid=True, gridcolor='lightgrey',
+        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Border
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, 
-        showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True
+        showgrid=True, gridcolor='lightgrey',
+        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Border
     ),
     height=800,
     legend=dict(
         orientation="h",
         yanchor="top", y=-0.12, 
         xanchor="center", x=0.5,
-        font=dict(size=14),
+        font=dict(size=13),
         itemsizing='constant'
     ),
     annotations=[
         dict(
             xref="paper", yref="paper", x=0.02, y=0.98,
             text="<span style='color:green'>●</span> OS<br><span style='color:red'>●</span> OD",
-            font=dict(size=15, family="Arial Black"),
+            font=dict(size=14, family="Arial Black"),
             showarrow=False, align="left", bgcolor="white", bordercolor="black", borderwidth=1
         )
     ],
@@ -132,15 +127,7 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. EXPORT ---
-st.divider()
-try:
-    pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
-    st.download_button(label="📥 DOWNLOAD PDF", data=pdf_bytes, file_name=f"AXL_{name}.pdf", mime="application/pdf")
-except:
-    st.info("Check requirements.txt for 'kaleido'.")
-
-if st.button("Undo Entry"):
+if st.button("Undo Last Entry"):
     if st.session_state.visits:
         st.session_state.visits.pop()
         st.rerun()
