@@ -8,7 +8,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. CLINICAL DATA TABLES ---
+# --- 2. DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -54,7 +54,6 @@ st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Define the exact symbols and styles from your reference
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
@@ -71,29 +70,29 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
-    # Trace 1: Draw the lines on the chart (Visible chart lines)
+    # 1. Main Chart Trace (Visible lines on graph, hidden from legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
         mode='lines+markers' if style["symbol"] else 'lines',
-        marker=dict(symbol=style["symbol"], size=8, color="black"),
+        marker=dict(symbol=style["symbol"], size=7, color="black"),
         line=dict(
-            color="black" if is_median else "#444444", 
+            color="black" if is_median else "#555555", 
             width=1.5 if is_median else 1.2, 
             dash=style["dash"]
         ),
-        showlegend=False, # We don't want the thick lines in the legend
+        showlegend=False,
         hoverinfo='skip'
     ))
-
-    # Trace 2: Legend-Only Trace (Hairline lines for legend display)
+    
+    # 2. Legend-Only Trace (Hairline lines to fix the "thick block" issue)
     fig.add_trace(go.Scatter(
-        x=[None], y=[None], # No data points
+        x=[None], y=[None],
         name=p,
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
         line=dict(
             color="black", 
-            width=0.5, # Very thin line for the legend
+            width=0.8, # Thin hairline line for legend icons
             dash=style["dash"]
         ),
         showlegend=True
@@ -102,26 +101,24 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
 # Patient Measurements (OS/OD)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OS'], mode='markers+lines', 
-        marker=dict(color='green', size=11), line=dict(width=2), showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OD'], mode='markers+lines', 
-        marker=dict(color='red', size=11), line=dict(width=2), showlegend=False
-    ))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], mode='markers+lines', 
+                             marker=dict(color='green', size=11, symbol='circle'), 
+                             line=dict(width=2.5), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], mode='markers+lines', 
+                             marker=dict(color='red', size=11, symbol='circle'), 
+                             line=dict(width=2.5), showlegend=False))
 
-# --- 5. BOXED GRID & HORIZONTAL LEGEND ---
+# --- 5. VISUAL REFINEMENT ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", range=[4, 18], dtick=1, 
-        showgrid=True, gridcolor='darkgrey',
+        showgrid=True, gridcolor='lightgrey',
         showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, 
-        showgrid=True, gridcolor='darkgrey',
+        showgrid=True, gridcolor='lightgrey',
         showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     height=800,
@@ -130,8 +127,9 @@ fig.update_layout(
         yanchor="top", y=-0.12, 
         xanchor="center", x=0.5,
         font=dict(size=14),
-        itemwidth=35, # Spreading the icons out
-        itemsizing='constant'
+        itemsizing='constant',
+        traceorder='normal',
+        itemwidth=40  # Provides horizontal spacing for better clarity
     ),
     annotations=[
         dict(
@@ -146,8 +144,6 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. EXPORT ---
-st.divider()
 if st.button("Undo Last Entry"):
     if st.session_state.visits:
         st.session_state.visits.pop()
