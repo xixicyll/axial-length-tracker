@@ -74,7 +74,7 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
         # Setting line width to 0.5 makes it appear very thin behind the markers
-        line=dict(color="black" if p=="50" else "#666666", width=0.8 if p!="50" else 2, dash=style["dash"]),
+        line=dict(color="black" if p=="50" else "#666666", width=0.5 if p!="50" else 2, dash=style["dash"]),
         showlegend=True
     ))
 
