@@ -70,18 +70,32 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
+    # 1. ACTUAL CHART TRACE (Thicker line, hidden from legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"{p}",
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
-        # The line width here affects the legend; we keep it thin for that clean look
         line=dict(
             color="black" if is_median else "#444444", 
-            width=0.5 if not is_median else 1.5, # Thinner lines crossing legend markers
+            width=1.5 if is_median else 1.2, 
             dash=style["dash"]
         ),
-        legendgroup="Percentiles"
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+
+    # 2. LEGEND TEMPLATE TRACE (Thin line, visible in legend)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], # Invisible data points
+        name=p,
+        mode='lines+markers' if style["symbol"] else 'lines',
+        marker=dict(symbol=style["symbol"], size=8, color="black"),
+        line=dict(
+            color="black" if is_median else "#444444", 
+            width=0.5, # Thin legend line
+            dash=style["dash"]
+        ),
+        showlegend=True
     ))
 
 # Patient Measurements (OS/OD)
@@ -98,31 +112,28 @@ if st.session_state.visits:
         line=dict(width=2), showlegend=False
     ))
 
-# --- 5. BOXED GRID & HORIZONTAL LEGEND REFINEMENT ---
+# --- 5. VISUAL REFINEMENT ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", range=[4, 18], dtick=1, 
         showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # The Outer Border
+        showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, 
         showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # The Outer Border
+        showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     height=800,
-    # Horizontal legend forced to the bottom
     legend=dict(
         orientation="h",
         yanchor="top", y=-0.12, 
         xanchor="center", x=0.5,
         font=dict(size=14),
         itemwidth=30,
-        traceorder="normal",
-        itemsizing='constant' # Keeps marker symbols consistent in legend
+        itemsizing='constant' 
     ),
-    # Top-left Custom Annotation Box
     annotations=[
         dict(
             xref="paper", yref="paper", x=0.02, y=0.98,
@@ -136,15 +147,9 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. EXPORT ---
+# --- 6. UTILITIES ---
 st.divider()
-try:
-    pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
-    st.download_button(label="📥 DOWNLOAD PDF", data=pdf_bytes, file_name=f"AXL_{name}.pdf", mime="application/pdf")
-except:
-    st.info("Ensure 'kaleido' is in requirements.txt to enable PDF downloads.")
-
-if st.button("Undo Entry"):
+if st.button("Undo Last Entry"):
     if st.session_state.visits:
         st.session_state.visits.pop()
         st.rerun()
