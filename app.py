@@ -54,7 +54,6 @@ st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Marker Map for Clinical Reference
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
@@ -66,19 +65,20 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
-# Percentile Lines
+# Percentile Lines with "Thinner" line rendering in Legend
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"p{p}",
+        name=f"{p}",
         mode='lines+markers' if style["symbol"] else 'lines',
-        marker=dict(symbol=style["symbol"], size=7, color="black"),
-        line=dict(color="black" if p=="50" else "grey", width=2 if p=="50" else 1, dash=style["dash"]),
+        marker=dict(symbol=style["symbol"], size=8, color="black"),
+        # Setting line width to 0.5 makes it appear very thin behind the markers
+        line=dict(color="black" if p=="50" else "#666666", width=0.8 if p!="50" else 2, dash=style["dash"]),
         showlegend=True
     ))
 
-# Patient Lines
+# Patient Lines (Keep these thick for visibility)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS", mode='markers+lines', 
@@ -86,31 +86,33 @@ if st.session_state.visits:
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD", mode='markers+lines', 
                              marker=dict(color='red', size=11), showlegend=False))
 
-# --- 5. THE CRITICAL LAYOUT FIXES ---
+# --- 5. THE BOXED-IN GRID & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", 
         range=[4, 18], dtick=1, 
-        showgrid=True, gridcolor='darkgrey', # High-contrast grid
-        showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
+        showgrid=True, gridcolor='darkgrey',
+        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Outer Border
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", 
         range=[20, 28], dtick=1, 
-        showgrid=True, gridcolor='darkgrey', # High-contrast grid
-        showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
+        showgrid=True, gridcolor='darkgrey',
+        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Outer Border
     ),
     height=800,
-    # FORCED HORIZONTAL LEGEND AT BOTTOM
+    # Clean Horizontal Legend
     legend=dict(
         orientation="h",
-        yanchor="top", y=-0.1,
+        yanchor="top", y=-0.12, # Positioned further down to avoid X-axis overlap
         xanchor="center", x=0.5,
-        bordercolor="black", borderwidth=1,
-        itemsizing='constant'
+        font=dict(size=14),
+        traceorder="normal",
+        itemsizing='constant',
+        itemwidth=30
     ),
-    # Floating legend for OS/OD to mimic screenshot
+    # Top-left UI Box
     annotations=[
         dict(
             xref="paper", yref="paper", x=0.02, y=0.98,
@@ -124,17 +126,17 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. UTILITIES ---
+# --- 6. EXPORT ---
 st.divider()
-col1, col2 = st.columns([1, 4])
-with col1:
-    try:
-        pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
-        st.download_button(label="📥 EXPORT PDF", data=pdf_bytes, file_name=f"AXL_{name}.pdf", mime="application/pdf")
-    except:
-        st.info("Check requirements.txt for 'kaleido'.")
-with col2:
-    if st.button("Clear Last Entry"):
-        if st.session_state.visits:
-            st.session_state.visits.pop()
-            st.rerun()
+try:
+    # Scale=2 for high resolution PDF
+    pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
+    st.download_button(label="📥 DOWNLOAD CLINICAL PDF", data=pdf_bytes, 
+                       file_name=f"AXL_Growth_{name}.pdf", mime="application/pdf")
+except:
+    st.info("To enable PDF export, please ensure 'kaleido' is in your requirements.txt file.")
+
+if st.button("Undo Entry"):
+    if st.session_state.visits:
+        st.session_state.visits.pop()
+        st.rerun()
