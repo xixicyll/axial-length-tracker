@@ -36,12 +36,12 @@ FEMALE_DATA = {
 # --- 3. SIDEBAR ---
 with st.sidebar:
     st.header("👤 Patient Profile")
-    name = st.text_input("Name", "Unnamed Patient")
+    name = st.text_input("Full Name", "Unnamed Patient")
     gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
-    v_os = st.number_input("OS (Left) mm", 18.0, 32.0, 24.00, 0.01)
-    v_od = st.number_input("OD (Right) mm", 18.0, 32.0, 24.00, 0.01)
+    v_os = st.number_input("OS (mm)", 18.0, 32.0, 24.00, 0.01)
+    v_od = st.number_input("OD (mm)", 18.0, 32.0, 24.25, 0.01)
     
     if st.button("Update Record", type="primary", use_container_width=True):
         st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
@@ -49,18 +49,18 @@ with st.sidebar:
         st.rerun()
 
 # --- 4. PLOT CONSTRUCTION ---
-st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
+st.title(f"AXL GROWTH: {name.upper()}")
 
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Define marker mapping directly from clinical images
+# Marker and Dash mapping from provided images
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
     "10": {"symbol": "square-open", "dash": "solid"},
     "25": {"symbol": "square", "dash": "solid"},
-    "50": {"symbol": None, "dash": "dash"},  # 50th is typically dashed with no markers
+    "50": {"symbol": None, "dash": "dash"},
     "75": {"symbol": "triangle-up-open", "dash": "solid"},
     "90": {"symbol": "x", "dash": "solid"},
     "95": {"symbol": "diamond-open", "dash": "solid"}
@@ -72,61 +72,87 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"{p}",
+        name=p,
         mode='lines+markers' if style["symbol"] else 'lines',
-        marker=dict(symbol=style["symbol"], size=8, color="black"),
+        marker=dict(symbol=style["symbol"], size=7, color="black"),
         line=dict(
-            color="black" if is_median else "rgba(100, 100, 100, 0.6)",
-            width=2 if is_median else 1,
+            color="black",
+            width=1.5 if is_median else 1,
             dash=style["dash"]
         ),
-        showlegend=False  # Percentiles are labeled by their position/hover
+        legendgroup="Percentiles",
     ))
 
-# Patient Data with High Visibility
+# Patient Measurements (Placed in separate legend group for UI box)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OS'], name="OS (Left)", 
-        mode='markers+lines', marker=dict(color='green', size=12, symbol='circle')
+        x=df['Age'], y=df['OS'], name="OS", 
+        mode='markers+lines', marker=dict(color='green', size=10, symbol='circle'),
+        legendgroup="Patient"
     ))
     fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OD'], name="OD (Right)", 
-        mode='markers+lines', marker=dict(color='red', size=12, symbol='circle')
+        x=df['Age'], y=df['OD'], name="OD", 
+        mode='markers+lines', marker=dict(color='red', size=10, symbol='circle'),
+        legendgroup="Patient"
     ))
 
-# Layout Adjustment to match clinical chart design
+# --- 5. GRID & LEGEND STYLING ---
 fig.update_layout(
     template="plotly_white",
-    xaxis=dict(title="Age (years)", range=[4, 18], dtick=1, showgrid=True, gridcolor='lightgrey'),
-    yaxis=dict(title=f"Axial length (mm) - {gender}s", range=[20, 28], dtick=1, showgrid=True, gridcolor='lightgrey'),
-    height=800,
-    legend=dict(
-        orientation="v", yanchor="top", y=0.98, xanchor="left", x=0.02,
-        bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1
+    xaxis=dict(
+        title="<b>Age (years)</b>", 
+        range=[4, 18], 
+        dtick=1, 
+        showgrid=True, 
+        gridcolor='darkgrey', # High-contrast grid lines
+        gridwidth=1
     ),
-    margin=dict(l=80, r=40, t=40, b=80)
+    yaxis=dict(
+        title=f"<b>Axial length (mm)- {gender}s</b>", 
+        range=[20, 28], 
+        dtick=1, 
+        showgrid=True, 
+        gridcolor='darkgrey',
+        gridwidth=1
+    ),
+    height=800,
+    # Horizontal legend at bottom for percentiles
+    legend=dict(
+        orientation="h",
+        yanchor="top", y=-0.1,
+        xanchor="center", x=0.5,
+        title_text="",
+        font=dict(size=12)
+    ),
+    # Floating legend box for OS/OD
+    annotations=[
+        dict(
+            xref="paper", yref="paper", x=0.02, y=0.98,
+            text="● OS<br>● OD",
+            font=dict(color="black", size=14),
+            showarrow=False,
+            align="left",
+            bgcolor="white",
+            bordercolor="black",
+            borderwidth=1
+        )
+    ],
+    margin=dict(l=80, r=40, t=60, b=100)
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. EXPORT & UTILITIES ---
+# --- 6. UTILITIES ---
 st.divider()
 col1, col2 = st.columns([1, 4])
-
 with col1:
     try:
-        # High resolution PDF for printing
         pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
-        st.download_button(
-            label="📥 DOWNLOAD REPORT",
-            data=pdf_bytes,
-            file_name=f"AXL_Growth_{name}.pdf",
-            mime="application/pdf"
-        )
+        st.download_button(label="📥 EXPORT REPORT", data=pdf_bytes, 
+                           file_name=f"AXL_{name}.pdf", mime="application/pdf")
     except:
-        st.info("PDF engine (kaleido) is not ready. Add it to requirements.txt.")
-
+        st.info("PDF engine not found.")
 with col2:
     if st.button("Undo Last Entry"):
         if st.session_state.visits:
