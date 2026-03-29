@@ -65,64 +65,60 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
-# Percentile Lines
+# Percentile Lines (Two-Step Trace for Thinner Legend Lines)
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
+    # 1. ACTUAL PLOT (Thick line, no legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"{p}",
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
-        # The line width here affects the legend; we keep it thin for that clean look
-        line=dict(
-            color="black" if is_median else "#444444", 
-            width=0.5 if not is_median else 1.5, # Thinner lines crossing legend markers
-            dash=style["dash"]
-        ),
-        legendgroup="Percentiles"
+        line=dict(color="black" if is_median else "#444444", width=1.5, dash=style["dash"]),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # 2. LEGEND DUMMY (Thin line, shows in legend)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], # Invisible data
+        name=p,
+        mode='lines+markers' if style["symbol"] else 'lines',
+        marker=dict(symbol=style["symbol"], size=8, color="black"),
+        line=dict(color="black", width=0.5, dash=style["dash"]), # THIN LINE FOR LEGEND
+        showlegend=True
     ))
 
 # Patient Measurements (OS/OD)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OS'], name="OS", 
-        mode='markers+lines', marker=dict(color='green', size=11, symbol='circle'),
-        line=dict(width=2), showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OD'], name="OD", 
-        mode='markers+lines', marker=dict(color='red', size=11, symbol='circle'),
-        line=dict(width=2), showlegend=False
-    ))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS", mode='markers+lines', 
+                             marker=dict(color='green', size=11, symbol='circle'), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD", mode='markers+lines', 
+                             marker=dict(color='red', size=11, symbol='circle'), showlegend=False))
 
-# --- 5. BOXED GRID & HORIZONTAL LEGEND REFINEMENT ---
+# --- 5. BOXED GRID & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", range=[4, 18], dtick=1, 
         showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # The Outer Border
+        showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, 
         showgrid=True, gridcolor='darkgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # The Outer Border
+        showline=True, linewidth=2, linecolor='black', mirror=True
     ),
     height=800,
-    # Horizontal legend forced to the bottom
     legend=dict(
         orientation="h",
         yanchor="top", y=-0.12, 
         xanchor="center", x=0.5,
         font=dict(size=14),
-        itemwidth=30,
-        traceorder="normal",
-        itemsizing='constant' # Keeps marker symbols consistent in legend
+        itemsizing='constant'
     ),
-    # Top-left Custom Annotation Box
     annotations=[
         dict(
             xref="paper", yref="paper", x=0.02, y=0.98,
@@ -142,7 +138,7 @@ try:
     pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
     st.download_button(label="📥 DOWNLOAD PDF", data=pdf_bytes, file_name=f"AXL_{name}.pdf", mime="application/pdf")
 except:
-    st.info("Ensure 'kaleido' is in requirements.txt to enable PDF downloads.")
+    st.info("Check requirements.txt for 'kaleido'.")
 
 if st.button("Undo Entry"):
     if st.session_state.visits:
