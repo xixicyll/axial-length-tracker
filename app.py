@@ -8,7 +8,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. DATA TABLES ---
+# --- 2. CLINICAL DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -59,7 +59,7 @@ MARKER_MAP = {
     "5":  {"symbol": "triangle-up", "dash": "solid"},
     "10": {"symbol": "square-open", "dash": "solid"},
     "25": {"symbol": "square", "dash": "solid"},
-    "50": {"symbol": "line-ew-open", "dash": "dash"}, # Special symbol for the dash
+    "50": {"symbol": "line-ew-open", "dash": "dash"}, 
     "75": {"symbol": "triangle-up-open", "dash": "solid"},
     "90": {"symbol": "x", "dash": "solid"},
     "95": {"symbol": "diamond-open", "dash": "solid"}
@@ -69,28 +69,21 @@ MARKER_MAP = {
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     
-    # 1. Main Chart Trace (Lines only, hidden from legend)
+    # Trace 1: Graph Lines (Thin, hidden from legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
         mode='lines+markers' if style["symbol"] != "line-ew-open" else 'lines',
         marker=dict(symbol=style["symbol"] if style["symbol"] != "line-ew-open" else None, 
                     size=7, color="black"),
-        line=dict(color="black", width=1.2, dash=style["dash"]),
-        showlegend=False,
-        hoverinfo='skip'
+        line=dict(color="black", width=1.0, dash=style["dash"]),
+        showlegend=False, hoverinfo='skip'
     ))
     
-    # 2. Legend-Only Trace (Markers only, NO lines to prevent the "thick bar" glitch)
+    # Trace 2: Legend Icons (Markers only to avoid thick bar glitch)
     fig.add_trace(go.Scatter(
-        x=[None], y=[None],
-        name=p,
-        mode='markers', # Crucial: Removing the line mode here stops the thick block
-        marker=dict(
-            symbol=style["symbol"], 
-            size=12, # Slightly larger for the legend
-            color="black",
-            line=dict(width=1, color="black") # Ensures open symbols look sharp
-        ),
+        x=[None], y=[None], name=p, mode='markers',
+        marker=dict(symbol=style["symbol"], size=12, color="black", 
+                    line=dict(width=1, color="black")),
         showlegend=True
     ))
 
@@ -98,13 +91,13 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], mode='markers+lines', 
-                             marker=dict(color='green', size=11), 
+                             marker=dict(color='green', size=11, symbol='circle'), 
                              line=dict(width=2.5), showlegend=False))
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], mode='markers+lines', 
-                             marker=dict(color='red', size=11), 
+                             marker=dict(color='red', size=11, symbol='circle'), 
                              line=dict(width=2.5), showlegend=False))
 
-# --- 5. VISUAL REFINEMENT ---
+# --- 5. BOXED GRID & LEGEND REFINEMENT ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(title="<b>Age (years)</b>", range=[4, 18], dtick=1, showgrid=True, gridcolor='lightgrey',
@@ -113,12 +106,8 @@ fig.update_layout(
                showline=True, linewidth=2, linecolor='black', mirror=True),
     height=750,
     legend=dict(
-        orientation="h",
-        yanchor="top", y=-0.15, 
-        xanchor="center", x=0.5,
-        font=dict(size=14),
-        itemwidth=30,
-        itemsizing='constant'
+        orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
+        font=dict(size=14), itemwidth=30, itemsizing='constant'
     ),
     annotations=[
         dict(xref="paper", yref="paper", x=0.02, y=0.98,
@@ -131,7 +120,25 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-if st.button("Undo Last Entry"):
-    if st.session_state.visits:
-        st.session_state.visits.pop()
-        st.rerun()
+# --- 6. UTILITIES & DOWNLOAD ---
+st.divider()
+col1, col2 = st.columns([1, 4])
+
+with col1:
+    if st.button("Undo Last Entry"):
+        if st.session_state.visits:
+            st.session_state.visits.pop()
+            st.rerun()
+
+with col2:
+    try:
+        # Generate PDF using Kaleido engine
+        pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
+        st.download_button(
+            label="📥 DOWNLOAD PDF REPORT",
+            data=pdf_bytes,
+            file_name=f"AXL_Report_{name.replace(' ', '_')}.pdf",
+            mime="application/pdf"
+        )
+    except Exception:
+        st.info("💡 To enable PDF downloads, ensure 'kaleido' is added to your requirements.txt file.")
