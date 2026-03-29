@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+import io
 
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
@@ -8,7 +9,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. THE CLINICAL DATA ENGINE (Direct from your tables) ---
+# --- 2. CLINICAL DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -39,63 +40,107 @@ with st.sidebar:
     name = st.text_input("Name", "Unnamed Patient")
     gender = st.selectbox("Biological Sex", ["Female", "Male"])
     st.divider()
-    st.subheader("➕ New Entry")
     v_age = st.number_input("Age (Years)", 4.0, 18.0, 9.0, 0.1)
     v_os = st.number_input("OS (Left) mm", 18.0, 32.0, 24.00, 0.01)
     v_od = st.number_input("OD (Right) mm", 18.0, 32.0, 24.00, 0.01)
     
-    if st.button("Update Clinical Record", type="primary", use_container_width=True):
+    if st.button("Update Record", type="primary", use_container_width=True):
         st.session_state.visits.append({"Age": v_age, "OS": v_os, "OD": v_od})
         st.session_state.visits.sort(key=lambda x: x['Age'])
         st.rerun()
 
 # --- 4. PLOT CONSTRUCTION ---
-st.title(f"AXIAL LENGTH GROWTH HISTORY: {name.upper()}")
-st.caption(f"Visualizing patient growth against {gender} reference percentiles.")
+st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Plot background percentile lines
+# Match the labels and dash style from original chart
 labels = ["3", "5", "10", "25", "50", "75", "90", "95"]
 for p in labels:
     is_median = (p == "50")
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"{p}th Percentile",
+        name=f"p{p}",
         mode='lines',
         line=dict(
-            color='rgba(150, 150, 150, 0.4)' if not is_median else 'black',
+            color='rgba(80, 80, 80, 0.5)' if not is_median else 'black',
             width=2 if is_median else 1,
-            dash='dash' if not is_median else 'solid'
+            dash='dash' if p in ["25", "75"] else 'solid'
         ),
         hoverinfo='y+name'
     ))
 
-# Plot Patient Measurements
+# Match Marker Styles from your screenshot
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS (Left)", 
-                             mode='markers+lines', marker=dict(color='green', size=12, symbol='x')))
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD (Right)", 
-                             mode='markers+lines', marker=dict(color='red', size=12, symbol='circle')))
+    fig.add_trace(go.Scatter(
+        x=df['Age'], y=df['OS'], name="OS", 
+        mode='markers+lines', marker=dict(color='green', size=12, symbol='circle')
+    ))
+    fig.add_trace(go.Scatter(
+        x=df['Age'], y=df['OD'], name="OD", 
+        mode='markers+lines', marker=dict(color='red', size=12, symbol='circle')
+    ))
 
-# Chart Layout
+# 5. SYNC LABELS AND ANNOTATIONS
 fig.update_layout(
     template="plotly_white",
-    xaxis=dict(title="Age (years)", range=[3.8, 18.2], dtick=1, showgrid=True),
-    yaxis=dict(title="Axial Length (mm)", range=[20, 28], dtick=1, showgrid=True),
-    height=700,
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    xaxis=dict(
+        title="Age (years)", 
+        range=[4, 18], 
+        dtick=1, 
+        showgrid=True, 
+        gridcolor='lightgrey',
+        zeroline=False
+    ),
+    yaxis=dict(
+        title=f"Axial length (mm) - {gender}s", 
+        range=[20, 28], 
+        dtick=1, 
+        showgrid=True, 
+        gridcolor='lightgrey',
+        zeroline=False
+    ),
+    height=750,
+    legend=dict(
+        orientation="v", 
+        yanchor="top", y=0.99, 
+        xanchor="left", x=0.01,
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="lightgrey",
+        borderwidth=1
+    ),
+    margin=dict(l=60, r=40, t=20, b=60),
     hovermode="x unified"
 )
 
+# Render Chart
 st.plotly_chart(fig, use_container_width=True)
 
-# Data Log Table
-if st.session_state.visits:
-    st.subheader("📋 Measurement Log")
-    st.table(pd.DataFrame(st.session_state.visits))
+# --- 6. EXPORT TO PDF ---
+st.divider()
+col1, col2 = st.columns([1, 5])
+
+with col1:
+    # Restoring the PDF Export button
+    # Note: Streamlit typically handles downloads via buffers
+    img_bytes = fig.to_image(format="pdf")
+    st.download_button(
+        label="📥 EXPORT REPORT",
+        data=img_bytes,
+        file_name=f"AXL_Report_{name.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+
+with col2:
     if st.button("Undo Last Entry"):
-        st.session_state.visits.pop()
-        st.rerun()
+        if st.session_state.visits:
+            st.session_state.visits.pop()
+            st.rerun()
+
+# Data Table for quick review
+if st.session_state.visits:
+    st.subheader("Visit History")
+    st.dataframe(pd.DataFrame(st.session_state.visits), hide_index=True)
