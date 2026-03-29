@@ -8,7 +8,7 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. CLINICAL DATA TABLES (Source: Your uploaded data) ---
+# --- 2. CLINICAL DATA TABLES ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
@@ -54,66 +54,81 @@ st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Plot background percentile lines
-labels = ["3", "5", "10", "25", "50", "75", "90", "95"]
-for p in labels:
+# Define marker mapping directly from clinical images
+MARKER_MAP = {
+    "3":  {"symbol": "circle", "dash": "solid"},
+    "5":  {"symbol": "triangle-up", "dash": "solid"},
+    "10": {"symbol": "square-open", "dash": "solid"},
+    "25": {"symbol": "square", "dash": "solid"},
+    "50": {"symbol": None, "dash": "dash"},  # 50th is typically dashed with no markers
+    "75": {"symbol": "triangle-up-open", "dash": "solid"},
+    "90": {"symbol": "x", "dash": "solid"},
+    "95": {"symbol": "diamond-open", "dash": "solid"}
+}
+
+for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
+    style = MARKER_MAP[p]
     is_median = (p == "50")
+    
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
-        name=f"p{p}",
-        mode='lines',
+        name=f"{p}",
+        mode='lines+markers' if style["symbol"] else 'lines',
+        marker=dict(symbol=style["symbol"], size=8, color="black"),
         line=dict(
-            color='rgba(80, 80, 80, 0.5)' if not is_median else 'black',
+            color="black" if is_median else "rgba(100, 100, 100, 0.6)",
             width=2 if is_median else 1,
-            dash='dash' if p in ["25", "75"] else 'solid'
+            dash=style["dash"]
         ),
-        showlegend=True
+        showlegend=False  # Percentiles are labeled by their position/hover
     ))
 
-# Plot Patient Measurements
+# Patient Data with High Visibility
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], name="OS", 
-                             mode='markers+lines', marker=dict(color='green', size=10)))
-    fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], name="OD", 
-                             mode='markers+lines', marker=dict(color='red', size=10)))
+    fig.add_trace(go.Scatter(
+        x=df['Age'], y=df['OS'], name="OS (Left)", 
+        mode='markers+lines', marker=dict(color='green', size=12, symbol='circle')
+    ))
+    fig.add_trace(go.Scatter(
+        x=df['Age'], y=df['OD'], name="OD (Right)", 
+        mode='markers+lines', marker=dict(color='red', size=12, symbol='circle')
+    ))
 
-# Styling to match the original image charts
+# Layout Adjustment to match clinical chart design
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(title="Age (years)", range=[4, 18], dtick=1, showgrid=True, gridcolor='lightgrey'),
     yaxis=dict(title=f"Axial length (mm) - {gender}s", range=[20, 28], dtick=1, showgrid=True, gridcolor='lightgrey'),
-    height=750,
+    height=800,
     legend=dict(
-        orientation="v", 
-        yanchor="top", y=0.98, 
-        xanchor="left", x=0.02,
-        bgcolor="rgba(255,255,255,0.7)",
-        bordercolor="black", borderwidth=1
+        orientation="v", yanchor="top", y=0.98, xanchor="left", x=0.02,
+        bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1
     ),
-    margin=dict(l=60, r=40, t=20, b=60)
+    margin=dict(l=80, r=40, t=40, b=80)
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. EXPORT & DOWNLOAD ---
+# --- 5. EXPORT & UTILITIES ---
 st.divider()
 col1, col2 = st.columns([1, 4])
 
 with col1:
     try:
-        pdf_bytes = fig.to_image(format="pdf", engine="kaleido")
+        # High resolution PDF for printing
+        pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
         st.download_button(
-            label="📥 DOWNLOAD PDF",
+            label="📥 DOWNLOAD REPORT",
             data=pdf_bytes,
-            file_name=f"AXL_Report_{name}.pdf",
+            file_name=f"AXL_Growth_{name}.pdf",
             mime="application/pdf"
         )
-    except Exception as e:
-        st.warning("PDF engine not found. To enable downloads, add 'kaleido' to requirements.txt.")
+    except:
+        st.info("PDF engine (kaleido) is not ready. Add it to requirements.txt.")
 
 with col2:
-    if st.button("Clear Last Entry"):
+    if st.button("Undo Last Entry"):
         if st.session_state.visits:
             st.session_state.visits.pop()
             st.rerun()
