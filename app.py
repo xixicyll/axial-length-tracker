@@ -54,6 +54,7 @@ st.title(f"AXIAL LENGTH GROWTH CHART: {name.upper()}")
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
+# Define the exact symbols and styles from your reference
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
@@ -70,7 +71,7 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
-    # 1. ACTUAL CHART TRACE (Thicker line, hidden from legend)
+    # Trace 1: Draw the lines on the chart (Visible chart lines)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
         mode='lines+markers' if style["symbol"] else 'lines',
@@ -80,19 +81,19 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
             width=1.5 if is_median else 1.2, 
             dash=style["dash"]
         ),
-        showlegend=False,
+        showlegend=False, # We don't want the thick lines in the legend
         hoverinfo='skip'
     ))
 
-    # 2. LEGEND TEMPLATE TRACE (Thin line, visible in legend)
+    # Trace 2: Legend-Only Trace (Hairline lines for legend display)
     fig.add_trace(go.Scatter(
-        x=[None], y=[None], # Invisible data points
+        x=[None], y=[None], # No data points
         name=p,
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
         line=dict(
-            color="black" if is_median else "#444444", 
-            width=0.5, # Thin legend line
+            color="black", 
+            width=0.5, # Very thin line for the legend
             dash=style["dash"]
         ),
         showlegend=True
@@ -102,17 +103,15 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OS'], name="OS", 
-        mode='markers+lines', marker=dict(color='green', size=11, symbol='circle'),
-        line=dict(width=2), showlegend=False
+        x=df['Age'], y=df['OS'], mode='markers+lines', 
+        marker=dict(color='green', size=11), line=dict(width=2), showlegend=False
     ))
     fig.add_trace(go.Scatter(
-        x=df['Age'], y=df['OD'], name="OD", 
-        mode='markers+lines', marker=dict(color='red', size=11, symbol='circle'),
-        line=dict(width=2), showlegend=False
+        x=df['Age'], y=df['OD'], mode='markers+lines', 
+        marker=dict(color='red', size=11), line=dict(width=2), showlegend=False
     ))
 
-# --- 5. VISUAL REFINEMENT ---
+# --- 5. BOXED GRID & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
@@ -131,8 +130,8 @@ fig.update_layout(
         yanchor="top", y=-0.12, 
         xanchor="center", x=0.5,
         font=dict(size=14),
-        itemwidth=30,
-        itemsizing='constant' 
+        itemwidth=35, # Spreading the icons out
+        itemsizing='constant'
     ),
     annotations=[
         dict(
@@ -147,7 +146,7 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. UTILITIES ---
+# --- 6. EXPORT ---
 st.divider()
 if st.button("Undo Last Entry"):
     if st.session_state.visits:
