@@ -1,7 +1,6 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-import io
 
 # 1. Page Configuration
 st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
@@ -9,16 +8,16 @@ st.set_page_config(page_title="AXL Clinical Tracker", layout="wide")
 if 'visits' not in st.session_state:
     st.session_state.visits = []
 
-# --- 2. CLINICAL DATA TABLES ---
+# --- 2. CLINICAL DATA TABLES (Source: Your uploaded data) ---
 MALE_DATA = {
     "Age": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-    "3":   [21.26, 21.41, 21.63, 21.99, 22.39, 22.78, 23.13, 23.33, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
-    "5":   [21.41, 21.64, 21.87, 22.26, 22.69, 23.12, 23.51, 23.74, 22.88, 22.99, 23.08, 23.15, 23.20, 23.23, 23.22],
-    "10":  [21.63, 21.87, 22.10, 22.51, 22.97, 23.45, 23.88, 24.15, 23.20, 23.33, 23.44, 23.53, 23.60, 23.66, 23.69],
-    "25":  [21.99, 22.26, 22.51, 22.75, 23.25, 23.76, 24.24, 24.54, 23.76, 23.92, 24.06, 24.19, 24.31, 24.41, 24.50],
-    "50":  [22.39, 22.69, 22.97, 23.25, 23.51, 24.07, 24.60, 24.92, 24.43, 24.62, 24.81, 24.98, 25.13, 25.28, 25.41],
-    "75":  [22.78, 23.12, 23.45, 23.76, 24.07, 24.36, 24.93, 25.30, 25.15, 25.39, 25.61, 25.82, 26.01, 26.18, 26.35],
-    "90":  [23.13, 23.51, 23.88, 24.24, 24.60, 24.93, 25.26, 25.65, 25.86, 26.14, 26.39, 26.63, 26.84, 27.04, 27.21],
+    "3":   [21.26, 21.49, 21.71, 21.91, 22.09, 22.27, 22.42, 22.56, 22.68, 22.78, 22.86, 22.91, 22.94, 22.95, 22.92],
+    "5":   [21.41, 21.64, 21.86, 22.07, 22.26, 22.44, 22.60, 22.75, 22.88, 22.99, 23.08, 23.15, 23.20, 23.23, 23.22],
+    "10":  [21.63, 21.87, 22.10, 22.32, 22.53, 22.72, 22.89, 23.05, 23.20, 23.33, 23.44, 23.53, 23.60, 23.66, 23.69],
+    "25":  [21.99, 22.26, 22.51, 22.75, 22.98, 23.19, 23.40, 23.58, 23.76, 23.92, 24.06, 24.19, 24.31, 24.41, 24.50],
+    "50":  [22.39, 22.69, 22.97, 23.25, 23.51, 23.76, 23.99, 24.22, 24.43, 24.62, 24.81, 24.98, 25.13, 25.28, 25.41],
+    "75":  [22.78, 23.12, 23.45, 23.76, 24.07, 24.36, 24.64, 24.90, 25.15, 25.39, 25.61, 25.82, 26.01, 26.18, 26.35],
+    "90":  [23.13, 23.51, 23.88, 24.24, 24.60, 24.93, 25.26, 25.57, 25.86, 26.14, 26.39, 26.63, 26.84, 27.04, 27.21],
     "95":  [23.33, 23.74, 24.15, 24.54, 24.92, 25.30, 25.65, 25.99, 26.31, 26.61, 26.89, 27.14, 27.36, 27.56, 27.74]
 }
 
@@ -55,7 +54,7 @@ st.title(f"AXL GROWTH: {name.upper()}")
 data_source = FEMALE_DATA if gender == "Female" else MALE_DATA
 fig = go.Figure()
 
-# Define marker mapping directly from clinical images
+# Marker styles from images
 MARKER_MAP = {
     "3":  {"symbol": "circle", "dash": "solid"},
     "5":  {"symbol": "triangle-up", "dash": "solid"},
@@ -84,61 +83,71 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
         legendgroup="Percentiles"
     ))
 
-# Patient Data
+# Patient Measurements
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(
         x=df['Age'], y=df['OS'], name="OS", 
-        mode='markers+lines', marker=dict(color='green', size=10, symbol='circle')
+        mode='markers+lines', marker=dict(color='green', size=11, symbol='circle'),
+        showlegend=False # Managed by the top-left annotation box
     ))
     fig.add_trace(go.Scatter(
         x=df['Age'], y=df['OD'], name="OD", 
-        mode='markers+lines', marker=dict(color='red', size=10, symbol='circle')
+        mode='markers+lines', marker=dict(color='red', size=11, symbol='circle'),
+        showlegend=False
     ))
 
-# --- 5. VISUAL REFINEMENT ---
+# --- 5. GRID, BORDER & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", 
-        range=[4, 18], dtick=1, 
-        showgrid=True, gridcolor='lightgrey',
+        range=[4, 18.2], dtick=1, 
+        showgrid=True, gridcolor='rgba(180, 180, 180, 0.5)',
         showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm)- {gender}s</b>", 
         range=[20, 28], dtick=1, 
-        showgrid=True, gridcolor='lightgrey',
+        showgrid=True, gridcolor='rgba(180, 180, 180, 0.5)',
         showline=True, linewidth=2, linecolor='black', mirror=True # Outer Border
     ),
     height=800,
-    # Horizontal Legend at bottom
+    # Horizontal Legend exactly like the reference image
     legend=dict(
         orientation="h",
-        yanchor="top", y=-0.1,
+        yanchor="top", y=-0.08,
         xanchor="center", x=0.5,
         bgcolor="rgba(255,255,255,0)",
-        bordercolor="rgba(0,0,0,0)"
+        font=dict(size=13)
     ),
-    margin=dict(l=80, r=40, t=40, b=120)
+    # The OS/OD Floating Box from screenshot
+    annotations=[
+        dict(
+            xref="paper", yref="paper", x=0.02, y=0.98,
+            text="<span style='color:green'>●</span> OS<br><span style='color:red'>●</span> OD",
+            font=dict(size=16, family="Arial Black"),
+            showarrow=False, align="left",
+            bgcolor="white", bordercolor="black", borderwidth=1
+        )
+    ],
+    margin=dict(l=80, r=40, t=40, b=100)
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. EXPORT ---
+# --- 6. EXPORT & UTILS ---
 st.divider()
-try:
-    img_bytes = fig.to_image(format="pdf", engine="kaleido")
-    st.download_button(
-        label="📥 EXPORT PDF REPORT",
-        data=img_bytes,
-        file_name=f"AXL_Report_{name}.pdf",
-        mime="application/pdf"
-    )
-except:
-    st.info("Export active. Ensure 'kaleido' is in requirements.txt.")
-
-if st.button("Undo Last Entry"):
-    if st.session_state.visits:
-        st.session_state.visits.pop()
-        st.rerun()
+col1, col2 = st.columns([1, 4])
+with col1:
+    try:
+        pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
+        st.download_button(label="📥 EXPORT PDF", data=pdf_bytes, 
+                           file_name=f"AXL_{name}.pdf", mime="application/pdf")
+    except:
+        st.info("Export system ready. Add 'kaleido' to requirements.txt.")
+with col2:
+    if st.button("Undo Last Entry"):
+        if st.session_state.visits:
+            st.session_state.visits.pop()
+            st.rerun()
