@@ -65,11 +65,8 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
-# Percentile Lines
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
-    
-    # Trace 1: Graph Lines (Thin, hidden from legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
         mode='lines+markers' if style["symbol"] != "line-ew-open" else 'lines',
@@ -78,8 +75,6 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
         line=dict(color="black", width=1.0, dash=style["dash"]),
         showlegend=False, hoverinfo='skip'
     ))
-    
-    # Trace 2: Legend Icons (Markers only to avoid thick bar glitch)
     fig.add_trace(go.Scatter(
         x=[None], y=[None], name=p, mode='markers',
         marker=dict(symbol=style["symbol"], size=12, color="black", 
@@ -87,7 +82,6 @@ for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
         showlegend=True
     ))
 
-# Patient Measurements (OS/OD)
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], mode='markers+lines', 
@@ -97,48 +91,48 @@ if st.session_state.visits:
                              marker=dict(color='red', size=11, symbol='circle'), 
                              line=dict(width=2.5), showlegend=False))
 
-# --- 5. BOXED GRID & LEGEND REFINEMENT ---
+# --- 5. COMPACT LAYOUT REFINEMENT ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(title="<b>Age (years)</b>", range=[4, 18], dtick=1, showgrid=True, gridcolor='lightgrey',
                showline=True, linewidth=2, linecolor='black', mirror=True),
     yaxis=dict(title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, showgrid=True, gridcolor='lightgrey',
                showline=True, linewidth=2, linecolor='black', mirror=True),
-    height=750,
+    height=700, # Reduced height for compactness
     legend=dict(
-        orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
-        font=dict(size=14), itemwidth=30, itemsizing='constant'
+        orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5,
+        font=dict(size=13), itemwidth=30, itemsizing='constant'
     ),
     annotations=[
         dict(xref="paper", yref="paper", x=0.02, y=0.98,
              text="<span style='color:green'>●</span> OS<br><span style='color:red'>●</span> OD",
-             font=dict(size=15, family="Arial Black"), showarrow=False, align="left", 
+             font=dict(size=14, family="Arial Black"), showarrow=False, align="left", 
              bgcolor="white", bordercolor="black", borderwidth=1)
     ],
-    margin=dict(l=80, r=40, t=40, b=120)
+    margin=dict(l=60, r=40, t=20, b=100) # Tighter margins
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. UTILITIES & DOWNLOAD ---
-st.divider()
-col1, col2 = st.columns([1, 4])
+# --- 6. UNIFIED ACTIONS BAR ---
+# Using columns to put Undo and Download in the same row
+btn_col1, btn_col2 = st.columns([1, 1])
 
-with col1:
-    if st.button("Undo Last Entry"):
+with btn_col1:
+    if st.button("⏪ Undo Last", use_container_width=True):
         if st.session_state.visits:
             st.session_state.visits.pop()
             st.rerun()
 
-with col2:
+with btn_col2:
     try:
-        # Generate PDF using Kaleido engine
         pdf_bytes = fig.to_image(format="pdf", engine="kaleido", scale=2)
         st.download_button(
-            label="📥 DOWNLOAD PDF REPORT",
+            label="📥 Download PDF Report",
             data=pdf_bytes,
-            file_name=f"AXL_Report_{name.replace(' ', '_')}.pdf",
-            mime="application/pdf"
+            file_name=f"AXL_{name}.pdf",
+            mime="application/pdf",
+            use_container_width=True
         )
-    except Exception:
-        st.info("💡 To enable PDF downloads, ensure 'kaleido' is added to your requirements.txt file.")
+    except:
+        st.info("💡 Add 'kaleido' to requirements.txt to enable PDF export.")
