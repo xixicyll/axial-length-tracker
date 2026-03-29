@@ -65,27 +65,32 @@ MARKER_MAP = {
     "95": {"symbol": "diamond-open", "dash": "solid"}
 }
 
-# Percentile Lines: Using legendwidth for thinner legend lines
+# Percentile Lines: Decoupling Legend Width from Chart Width
 for p in ["3", "5", "10", "25", "50", "75", "90", "95"]:
     style = MARKER_MAP[p]
     is_median = (p == "50")
     
+    # Trace for the CHART (No Legend)
     fig.add_trace(go.Scatter(
         x=data_source["Age"], y=data_source[p],
+        mode='lines+markers' if style["symbol"] else 'lines',
+        marker=dict(symbol=style["symbol"], size=7, color="black"),
+        line=dict(color="black" if is_median else "#777777", width=1.5, dash=style["dash"]),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Trace for the LEGEND ONLY (No Data)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
         name=p,
         mode='lines+markers' if style["symbol"] else 'lines',
         marker=dict(symbol=style["symbol"], size=8, color="black"),
-        line=dict(
-            color="black" if is_median else "#444444", 
-            width=1.5, 
-            dash=style["dash"]
-        ),
-        # THIS IS THE KEY: Decouples legend line thickness from the chart
-        legendwidth=0.5, 
+        line=dict(color="black", width=0.5, dash=style["dash"]), # Hairline width for legend
         showlegend=True
     ))
 
-# Patient Measurements (OS/OD)
+# Patient Measurements
 if st.session_state.visits:
     df = pd.DataFrame(st.session_state.visits)
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OS'], mode='markers+lines', 
@@ -93,18 +98,18 @@ if st.session_state.visits:
     fig.add_trace(go.Scatter(x=df['Age'], y=df['OD'], mode='markers+lines', 
                              marker=dict(color='red', size=11), line=dict(width=2.5), showlegend=False))
 
-# --- 5. BOXED GRID & HORIZONTAL LEGEND ---
+# --- 5. BORDER & HORIZONTAL LEGEND ---
 fig.update_layout(
     template="plotly_white",
     xaxis=dict(
         title="<b>Age (years)</b>", range=[4, 18], dtick=1, 
         showgrid=True, gridcolor='lightgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Border
+        showline=True, linewidth=2, linecolor='black', mirror=True # Boxed Border
     ),
     yaxis=dict(
         title=f"<b>Axial length (mm) - {gender}s</b>", range=[20, 28], dtick=1, 
         showgrid=True, gridcolor='lightgrey',
-        showline=True, linewidth=2, linecolor='black', mirror=True # Explicit Border
+        showline=True, linewidth=2, linecolor='black', mirror=True # Boxed Border
     ),
     height=800,
     legend=dict(
