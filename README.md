@@ -10,10 +10,10 @@ The **Axial Length Tracker** web app is designed to facilitate eye care professi
 - **Reports Generation**: Ability to generate reports summarizing patient data and axial length measurements.
 
 ## Technologies Used
-- **Frontend**: React.js
-- **Backend**: Node.js with Express
-- **Database**: MongoDB
-- **Visualization Library**: Chart.js
+- **Frontend: Streamlit
+- **Backend: Python
+- **Visualization Library: Plotly
+- **Data Processing: Pandas
 
 ## Installation
 To set up the Axial Length Tracker locally:
